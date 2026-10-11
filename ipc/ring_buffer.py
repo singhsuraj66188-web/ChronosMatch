@@ -1,12 +1,14 @@
-
 from __future__ import annotations
 
 import mmap
 import os
 import struct
-import msvcrt
 from pathlib import Path
 
+if os.name == "nt":
+    import msvcrt
+else:
+    import fcntl
 
 _HEADER = struct.Struct("<QQ")
 _RECORD = struct.Struct("<QQIIB3x")
@@ -19,7 +21,7 @@ _DATA_OFFSET = _HEADER_OFFSET + _HEADER.size
 class RingBuffer:
     """Prototype file-backed ring buffer for one producer and one consumer.
 
-    Windows-specific locking is used to protect shared counter updates.
+    Platform-specific locking is used to protect shared counter updates.
     Side: 1 = BUY, 2 = SELL.
     Price is an integer tick value, not a floating-point number.
     """
@@ -68,13 +70,21 @@ class RingBuffer:
             self._map[_HEADER_OFFSET:_DATA_OFFSET] = _HEADER.pack(0, 0)
             self._map.flush()
 
+
     def _lock(self) -> None:
         self._file.seek(_LOCK_OFFSET)
-        msvcrt.locking(self._file.fileno(), msvcrt.LK_LOCK, 1)
+        if os.name == "nt":
+            msvcrt.locking(self._file.fileno(), msvcrt.LK_LOCK, 1)
+        else:
+            fcntl.flock(self._file.fileno(), fcntl.LOCK_EX)
 
     def _unlock(self) -> None:
         self._file.seek(_LOCK_OFFSET)
-        msvcrt.locking(self._file.fileno(), msvcrt.LK_UNLCK, 1)
+        if os.name == "nt":
+            msvcrt.locking(self._file.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            fcntl.flock(self._file.fileno(), fcntl.LOCK_UN)
+
 
     def _counters(self) -> tuple[int, int]:
         return _HEADER.unpack(self._map[_HEADER_OFFSET:_DATA_OFFSET])

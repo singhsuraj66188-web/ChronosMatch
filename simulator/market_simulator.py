@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import math
 import random
 import time
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 
 
@@ -22,12 +24,14 @@ async def generate_ticks(
     count: int = 100,
     interval_ms: float = 10.0,
     seed: int = 7,
-):
+) -> AsyncIterator[Tick]:
     """Generate synthetic ticks for testing; no real exchange is used."""
+    if isinstance(count, bool) or not isinstance(count, int):
+        raise TypeError("count must be an integer")
     if count < 0:
         raise ValueError("count cannot be negative")
-    if interval_ms < 0:
-        raise ValueError("interval_ms cannot be negative")
+    if not math.isfinite(interval_ms) or interval_ms < 0:
+        raise ValueError("interval_ms must be finite and non-negative")
 
     rng = random.Random(seed)
     price = 10_000
@@ -67,7 +71,8 @@ async def run(count: int, interval_ms: float, seed: int) -> None:
     rate = total / elapsed if elapsed > 0 else 0.0
 
     print(f"Generated {total} simulated ticks in {elapsed:.3f}s")
-    print(f"Approximate generation rate: {rate:.1f} ticks/s")
+    print(f"Approximate end-to-end simulator throughput: {rate:.1f} ticks/s")
+    print("Note: This includes waiting and terminal output; it is not engine latency.")
 
 
 def main() -> None:

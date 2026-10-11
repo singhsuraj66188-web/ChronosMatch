@@ -104,3 +104,40 @@ def test_duplicate_active_order_id_is_rejected():
         engine.submit_order(
             Order(order_id=1, side=Side.SELL, price=10000, quantity=1)
         )
+
+def test_same_price_orders_follow_timestamp_priority():
+    engine = MatchingEngine()
+
+    # Submit the later order first.
+    engine.submit_order(
+        Order(order_id=20, side=Side.SELL, price=10000, quantity=1, timestamp=2)
+    )
+    engine.submit_order(
+        Order(order_id=10, side=Side.SELL, price=10000, quantity=1, timestamp=1)
+    )
+
+    trades = engine.submit_order(
+        Order(order_id=30, side=Side.BUY, price=10000, quantity=1, timestamp=3)
+    )
+
+    assert len(trades) == 1
+    assert trades[0].sell_order_id == 10
+
+
+def test_same_price_and_timestamp_use_order_id_as_tiebreaker():
+    engine = MatchingEngine()
+
+    # Submit the higher ID first, with identical price and timestamp.
+    engine.submit_order(
+        Order(order_id=20, side=Side.SELL, price=10000, quantity=1, timestamp=5)
+    )
+    engine.submit_order(
+        Order(order_id=10, side=Side.SELL, price=10000, quantity=1, timestamp=5)
+    )
+
+    trades = engine.submit_order(
+        Order(order_id=30, side=Side.BUY, price=10000, quantity=1, timestamp=6)
+    )
+
+    assert len(trades) == 1
+    assert trades[0].sell_order_id == 10

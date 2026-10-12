@@ -2,7 +2,7 @@
 
 ## 1. Objective
 
-This document describes the testing approach for the ChronosMatch matching engine, order model, market simulator, and latency monitor. The goal is to verify expected behaviour and identify regressions when changes are introduced.
+This document describes the testing approach for the ChronosMatch matching engine, order model, market simulator, latency monitor, and shared-memory ring buffer. The goal is to verify expected behaviour and identify regressions when changes are introduced.
 
 ## 2. Running the Tests
 
@@ -14,7 +14,7 @@ python -m pytest -v
 
 ## 3. Existing Test Coverage
 
-The current test suite contains 27 passing test cases.
+The latest observed test run completed with **45 passing test cases and 0 failures**. The following sections summarize the test coverage identified from the existing test descriptions and the latest terminal output.
 
 ### Order Validation (`tests/test_orders.py`)
 
@@ -37,24 +37,37 @@ The current test suite contains 27 passing test cases.
 
 - Verification that the simulator generates the requested number of ticks.
 - Verification of sequential tick numbers and positive price and quantity values.
-- Rejection of a negative tick count.
-- Verification of latency summary count and median.
+- Rejection of negative tick counts.
+- Rejection of invalid intervals, including negative, infinite, and NaN values.
+- Verification that the simulator accepts a zero interval.
+- Verification of reproducible simulator output when using the same seed.
+- Verification of latency summary counts and median.
 - Verification of the summary of an empty latency monitor.
 - Rejection of negative latency durations.
+- Verification of nearest-rank p95 and p99 latency calculations.
+- Verification that the latency monitor maintains a bounded sample window.
+- Verification that zero latency duration is accepted.
+- Rejection of invalid latency window sizes.
 
-### Shared-Memory Ring Buffer (`tests/test_ring_buffer.py`)
+### Shared-Memory Ring Buffer (`tests/test_ring_buffer.py` and `tests/test_ring_buffer_integration.py`)
 
-- Writing and reading a tick record.
+- Writing and reading tick records.
 - Reading from an empty buffer.
 - Full-buffer rejection and wraparound behaviour.
 - Rejection of invalid tick data.
 - Preservation of records after closing and reopening the buffer.
 - Rejection of a capacity mismatch when reopening an existing buffer.
 - Rejection of capacities below two.
+- Preservation of values and order during successful transfers.
+- Handling of empty input.
+- Handling of full-buffer conditions and retry behaviour.
+- Reporting retry exhaustion.
+- Rejection of invalid retry configurations.
+- Ring-buffer cleanup and integration behaviour.
 
 ## 4. Regression Testing
 
-Run the complete test suite after modifying the order model, matching engine, simulator, or latency monitor. Existing tests should continue to pass unless an intentional behaviour change is introduced and reviewed.
+Run the complete test suite after modifying the order model, matching engine, simulator, latency monitor, or ring buffer. Existing tests should continue to pass unless an intentional behaviour change is introduced and reviewed.
 
 New tests should be added when new functionality or previously untested behaviour is introduced.
 
@@ -70,11 +83,23 @@ For each test run, record:
 
 ## 6. Future Testing
 
-Additional tests should be considered as the implementation evolves, including order cancellation and other edge cases not covered by the current test suite. New tests should be added after verifying the supported behaviour in the implementation.
+Additional tests should be considered as the implementation evolves, including:
+
+- Order cancellation and removal of cancelled orders from the active book.
+- Partial fills and remaining quantities after matching.
+- Order-book state after completed trades.
+- Matching-engine behaviour for empty books and additional boundary cases.
+- Simulator behaviour for zero ticks and boundary values for valid intervals.
+- Latency percentile calculations for small sample sizes and rolling-window boundaries.
+
+These are candidate areas for additional testing. Confirm the intended behaviour in the implementation before adding new tests or describing them as existing coverage.
 
 ## 7. Current Baseline
 
-- **Date:** October 12, 2026
-- **Command:** `python -m pytest -q`
-- **Result:** 27 tests passed, 0 failures.
-- **Purpose:** Regression test run after adding ring-buffer coverage.
+- **Date:** October 12, 2026.
+- **Command:** `python -m pytest -v`.
+- **Observed result:** 45 tests passed, 0 failures.
+- **Reported execution time:** Approximately 0.32 seconds in the latest run.
+- **Purpose:** Regression verification of the current local test suite, including ring-buffer, integration, simulator, and latency-monitor coverage.
+
+The baseline should be updated whenever a new test run produces a different result. Confirm that the local branch is synchronized with the latest `main` before treating this result as the baseline for the latest remote code.

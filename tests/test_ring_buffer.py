@@ -81,3 +81,41 @@ def test_invalid_tick_is_rejected(tmp_path):
                 quantity=1,
                 side=1,
             )
+
+
+def test_reopen_existing_buffer_preserves_records(tmp_path):
+    path = tmp_path / "ticks.bin"
+
+    with RingBuffer(path, capacity=4, create=True) as ring:
+        assert ring.write(
+            timestamp_ns=123,
+            price_ticks=2500,
+            quantity=3,
+            side=1,
+        )
+
+    with RingBuffer(path, capacity=4) as ring:
+        record = ring.read()
+
+        assert record is not None
+        assert record["timestamp_ns"] == 123
+        assert record["price_ticks"] == 2500
+        assert record["quantity"] == 3
+        assert record["side"] == 1
+
+
+def test_reopening_with_different_capacity_is_rejected(tmp_path):
+    path = tmp_path / "ticks.bin"
+
+    with RingBuffer(path, capacity=4, create=True):
+        pass
+
+    with pytest.raises(ValueError, match="same capacity"):
+        RingBuffer(path, capacity=2)
+
+
+def test_capacity_less_than_two_is_rejected(tmp_path):
+    path = tmp_path / "ticks.bin"
+
+    with pytest.raises(ValueError, match="at least 2"):
+        RingBuffer(path, capacity=1, create=True)

@@ -14,7 +14,7 @@ python -m pytest -v
 
 ## 3. Existing Test Coverage
 
-The current test suite contains 20 passing test cases.
+The current test suite contains 27 passing test cases.
 
 ### Order Validation (`tests/test_orders.py`)
 
@@ -42,6 +42,16 @@ The current test suite contains 20 passing test cases.
 - Verification of the summary of an empty latency monitor.
 - Rejection of negative latency durations.
 
+### Shared-Memory Ring Buffer (`tests/test_ring_buffer.py`)
+
+- Writing and reading a tick record.
+- Reading from an empty buffer.
+- Full-buffer rejection and wraparound behaviour.
+- Rejection of invalid tick data.
+- Preservation of records after closing and reopening the buffer.
+- Rejection of a capacity mismatch when reopening an existing buffer.
+- Rejection of capacities below two.
+
 ## 4. Regression Testing
 
 Run the complete test suite after modifying the order model, matching engine, simulator, or latency monitor. Existing tests should continue to pass unless an intentional behaviour change is introduced and reviewed.
@@ -64,7 +74,7 @@ Additional tests should be considered as the implementation evolves, including o
 
 ## 7. Current Baseline
 
-- **Date:** October 11, 2026
-- **Command:** `python -m pytest -v`
-- **Result:** 20 tests passed, 0 failures.
-- **Purpose:** Baseline test run for the current test suite.
+- **Date:** October 12, 2026
+- **Command:** `python -m pytest -q`
+- **Result:** 27 tests passed, 0 failures.
+- **Purpose:** Regression test run after adding ring-buffer coverage.

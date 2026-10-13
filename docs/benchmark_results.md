@@ -49,3 +49,28 @@ These are single-run, local microbenchmark measurements. They indicate a substan
 - Compare the Python reference engine with the Cython implementation.
 - Measure ring-buffer IPC and full-pipeline latency independently.
 - Do not claim the end-to-end 50 µs target is achieved until it is reproducibly measured.
+
+## Repeated benchmark runs — 12 October 2026
+
+Environment: Windows 10, Python 3.14.7, local development machine.
+
+Workload: 1,000 resting sell orders followed by 1,000 non-crossing buy submissions. Each run measures the buy submissions.
+
+| Run | Median latency | P95 latency | P99 latency |
+|---|---:|---:|---:|
+| 1 | 2.10 us | 2.70 us | 3.80 us |
+| 2 | 2.40 us | 4.50 us | 38.10 us |
+| 3 | 2.30 us | 2.80 us | 4.50 us |
+| 4 | 2.30 us | 4.00 us | 5.70 us |
+| 5 | 4.30 us | 11.60 us | 25.60 us |
+
+### Observations
+
+- Median latency ranged from 2.10 to 4.30 µs.
+- P95 latency ranged from 2.70 to 11.60 µs.
+- P99 latency ranged from 3.80 to 38.10 µs.
+- Tail latency varied noticeably between runs. Background system activity and runtime overhead are possible contributors, but the cause has not been established.
+
+### Interpretation and limitations
+
+These measurements are local Python microbenchmark results, not end-to-end trading-pipeline latency. They are preliminary and do not establish a general performance guarantee. Further repeated testing, crossing-order benchmarks, and separate shared-memory IPC measurements are required before evaluating the end-to-end 50 µs target.

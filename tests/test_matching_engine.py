@@ -104,3 +104,66 @@ def test_duplicate_active_order_id_is_rejected():
         engine.submit_order(
             Order(order_id=1, side=Side.SELL, price=10000, quantity=1)
         )
+
+def test_same_price_orders_follow_timestamp_priority():
+    engine = MatchingEngine()
+
+    # Submit the later order first.
+    engine.submit_order(
+        Order(order_id=20, side=Side.SELL, price=10000, quantity=1, timestamp=2)
+    )
+    engine.submit_order(
+        Order(order_id=10, side=Side.SELL, price=10000, quantity=1, timestamp=1)
+    )
+
+    trades = engine.submit_order(
+        Order(order_id=30, side=Side.BUY, price=10000, quantity=1, timestamp=3)
+    )
+
+    assert len(trades) == 1
+    assert trades[0].sell_order_id == 10
+
+
+def test_same_price_and_timestamp_use_order_id_as_tiebreaker():
+    engine = MatchingEngine()
+
+    # Submit the higher ID first, with identical price and timestamp.
+    engine.submit_order(
+        Order(order_id=20, side=Side.SELL, price=10000, quantity=1, timestamp=5)
+    )
+    engine.submit_order(
+        Order(order_id=10, side=Side.SELL, price=10000, quantity=1, timestamp=5)
+    )
+
+    trades = engine.submit_order(
+        Order(order_id=30, side=Side.BUY, price=10000, quantity=1, timestamp=6)
+    )
+
+    assert len(trades) == 1
+    assert trades[0].sell_order_id == 10
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "error"),
+    [
+        ("order_id", 0, "order_id must be positive"),
+        ("order_id", -1, "order_id must be positive"),
+        ("price", 0, "price must be positive"),
+        ("price", -1, "price must be positive"),
+        ("quantity", 0, "quantity must be positive"),
+        ("quantity", -1, "quantity must be positive"),
+        ("side", "BUY", "side must be Side.BUY or Side.SELL"),
+    ],
+)
+def test_invalid_order_fields_are_rejected(field, value, error):
+    values = {
+        "order_id": 1,
+        "side": Side.BUY,
+        "price": 10000,
+        "quantity": 1,
+        "timestamp": 1,
+    }
+    values[field] = value
+
+    with pytest.raises(ValueError, match=error):
+        Order(**values)

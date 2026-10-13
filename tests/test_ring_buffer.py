@@ -288,3 +288,46 @@ def test_write_releases_lock_when_operation_raises(tmp_path, monkeypatch):
         assert record["timestamp_ns"] == 124
 
 import multiprocessing
+
+
+def test_write_accepts_maximum_field_values(tmp_path):
+    with RingBuffer(tmp_path / "max-values.bin", capacity=2, create=True) as ring:
+        assert ring.write(
+            timestamp_ns=(1 << 64) - 1,
+            price_ticks=(1 << 32) - 1,
+            quantity=(1 << 32) - 1,
+            side=2,
+        )
+        record = ring.read()
+        assert record is not None
+        assert record["timestamp_ns"] == (1 << 64) - 1
+        assert record["price_ticks"] == (1 << 32) - 1
+        assert record["quantity"] == (1 << 32) - 1
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("timestamp_ns", -1),
+        ("timestamp_ns", 1 << 64),
+        ("price_ticks", 0),
+        ("price_ticks", 1 << 32),
+        ("quantity", 0),
+        ("quantity", 1 << 32),
+        ("side", 0),
+        ("side", 3),
+        ("timestamp_ns", 1.5),
+        ("price_ticks", True),
+    ],
+)
+def test_write_rejects_invalid_field_values(tmp_path, field, value):
+    values = {
+        "timestamp_ns": 1,
+        "price_ticks": 100,
+        "quantity": 1,
+        "side": 1,
+    }
+    values[field] = value
+    with RingBuffer(tmp_path / "invalid-values.bin", capacity=2, create=True) as ring:
+        with pytest.raises(ValueError):
+            ring.write(**values)

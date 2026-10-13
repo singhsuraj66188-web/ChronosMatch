@@ -97,11 +97,16 @@ class RingBuffer:
         quantity: int,
         side: int,
     ) -> bool:
-        if timestamp_ns < 0 or price_ticks < 1:
-            raise ValueError("timestamp and price are invalid")
-        if quantity < 1 or side not in (1, 2):
-            raise ValueError("quantity or side is invalid")
-
+        uint64_max = (1 << 64) - 1
+        uint32_max = (1 << 32) - 1
+        if type(timestamp_ns) is not int or not 0 <= timestamp_ns <= uint64_max:
+            raise ValueError("timestamp_ns must be an unsigned 64-bit integer")
+        if type(price_ticks) is not int or not 1 <= price_ticks <= uint32_max:
+            raise ValueError("price_ticks must be a positive unsigned 32-bit integer")
+        if type(quantity) is not int or not 1 <= quantity <= uint32_max:
+            raise ValueError("quantity must be a positive unsigned 32-bit integer")
+        if type(side) is not int or side not in (1, 2):
+            raise ValueError("side must be 1 (BUY) or 2 (SELL)")
         self._lock()
         try:
             write_seq, read_seq = self._counters()

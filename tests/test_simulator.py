@@ -27,8 +27,14 @@ def test_simulator_generates_requested_count():
 
     assert len(ticks) == 5
     assert [tick.sequence for tick in ticks] == list(range(5))
+    assert len({tick.sequence for tick in ticks}) == len(ticks)
     assert all(tick.price_ticks > 0 for tick in ticks)
     assert all(tick.quantity > 0 for tick in ticks)
+    assert all(tick.side in (1, 2) for tick in ticks)
+
+
+def test_simulator_zero_count_returns_no_ticks():
+    assert collect_ticks(count=0) == []
 
 
 def test_simulator_rejects_negative_count():

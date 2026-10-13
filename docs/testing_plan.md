@@ -14,7 +14,7 @@ python -m pytest -v
 
 ## 3. Existing Test Coverage
 
-The latest observed test run completed with **45 passing test cases and 0 failures**. The following sections summarize the test coverage identified from the existing test descriptions and the latest terminal output.
+The latest observed test run completed with **55 passing test cases and 0 failures**. The following sections summarize the test coverage identified from the existing test descriptions and the latest terminal output.
 
 ### Order Validation (`tests/test_orders.py`)
 
@@ -96,10 +96,10 @@ These are candidate areas for additional testing. Confirm the intended behaviour
 
 ## 7. Current Baseline
 
-- **Date:** October 12, 2026.
+- **Date:** October 13, 2026.
 - **Command:** `python -m pytest -v`.
-- **Observed result:** 45 tests passed, 0 failures.
-- **Reported execution time:** Approximately 0.32 seconds in the latest run.
-- **Purpose:** Regression verification of the current local test suite, including ring-buffer, integration, simulator, and latency-monitor coverage.
+- **Observed result:** 55 tests passed, 0 failures.
+- **Reported execution time:** Approximately 8.12 seconds in the observed local run.
+- **Purpose:** Regression verification of the current local test suite, including order validation, matching-engine behaviour, ring-buffer operations, integration, simulator, and latency-monitor coverage.
 
-The baseline should be updated whenever a new test run produces a different result. Confirm that the local branch is synchronized with the latest `main` before treating this result as the baseline for the latest remote code.
+This result reflects the observed local test run. Confirm that the local branch is synchronized with the latest `main` before treating it as the baseline for the latest remote code. Update this section whenever a new test run produces a different result.

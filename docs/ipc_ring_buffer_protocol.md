@@ -47,15 +47,20 @@ Unsigned 64-bit fields can represent values from 0 through `2^64 - 1`. The price
 - `close()` flushes and closes the memory map and file.
 - The implementation uses `msvcrt` locking on Windows and `fcntl.flock` on other platforms.
 
-## Decisions requiring confirmation
 
-Confirm with Suraj and Joanna:
 
-1. Whether this byte layout, little-endian encoding, and field widths are the agreed interface.
-2. Whether timestamps are Unix-epoch nanoseconds or another nanosecond-based clock. The code specifies units but does not establish the epoch.
-3. Whether price ticks and quantity must be strictly positive.
-4. Whether side values `1` and `2` are the agreed BUY/SELL encoding.
-5. Whether the one-byte lock region and locking approach meet the intended cross-platform contract.
-6. Whether reserved padding bytes must be zero and how protocol versioning should work.
+## Confirmed protocol contract
 
-Do not change the binary layout without agreement from the interface owners.
+The following details have been confirmed with Suraj:
+
+- **Record format:** `<QQIIB3x`, little-endian, 28 bytes per record.
+- **Sequence:** unsigned 64-bit integer, assigned by the ring buffer starting at 0.
+- **Timestamp:** unsigned 64-bit integer from the simulator's `time.perf_counter_ns()`. This is a monotonic performance-counter reading, not Unix-epoch time. Latency measurements must use compatible clock domains.
+- **Price ticks:** unsigned 32-bit integer, from 1 through `2^32 - 1`.
+- **Quantity:** unsigned 32-bit integer, from 1 through `2^32 - 1`.
+- **Side:** unsigned 8-bit integer; `1 = BUY`, `2 = SELL`.
+- **Reserved bytes:** three padding bytes, written as zero.
+- **Symbol:** remains `SIM` at the integration layer; it is not part of the binary record.
+- **Compatibility:** changes to the binary layout require team agreement and a versioned protocol revision.
+
+The existing full/empty behavior and Windows/Linux locking implementation remain unchanged.

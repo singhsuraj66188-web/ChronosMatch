@@ -2,7 +2,7 @@
 
 ## Status
 
-This document describes the current implementation in `ipc/ring_buffer.py`. It is not confirmation that all interface decisions have been approved by Suraj and Joanna. Obtain their confirmation before treating this format as a finalized cross-process contract.
+This document describes the current implementation in `ipc/ring_buffer.py` and records the confirmed protocol contract below. Changes to the binary layout require team agreement and a versioned protocol revision.
 
 ## File layout
 

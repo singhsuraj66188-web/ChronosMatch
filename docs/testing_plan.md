@@ -108,10 +108,10 @@ These are candidate areas for additional testing. Confirm the intended behaviour
 
 ## 7. Current Baseline
 
-- **Date:** October 14, 2026.
-- **Command:** `python -m pytest -v`.
-- **Observed result:** 72 tests passed, 0 failures.
-- **Reported execution time:** Approximately 1.93 seconds in the observed local run.
-- **Purpose:** Regression verification of the current local test suite, including order validation, matching-engine behaviour, ring-buffer operations, integration, simulator, and latency-monitor coverage.
+- **Date:** October 15, 2026.
+- **Command:** `.\.venv\Scripts\python.exe -m pytest -v`.
+- **Observed result:** 74 tests passed, 0 failures.
+- **Reported execution time:** 4.63 seconds in the observed local run on Windows with Python 3.14.7.
+- **Purpose:** Regression verification of the current test suite, including order validation, matching-engine behaviour, ring-buffer operations, IPC integration, end-to-end simulator-to-matching-engine processing, and latency-monitor coverage.
 
-This result reflects the observed local test run. Confirm that the local branch is synchronized with the latest `main` before treating it as the baseline for the latest remote code. Update this section whenever a new test run produces a different result.
+This baseline reflects the observed local test run on the updated main branch. Re-run the full test suite after subsequent changes and update this section whenever a new verified test run produces a different result.

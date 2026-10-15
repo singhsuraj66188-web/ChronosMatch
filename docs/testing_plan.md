@@ -96,10 +96,17 @@ These are candidate areas for additional testing. Confirm the intended behaviour
 
 ## 7. Current Baseline
 
-- **Date:** October 13, 2026.
-- **Command:** `python -m pytest -v`.
-- **Observed result:** 55 tests passed, 0 failures.
-- **Reported execution time:** Approximately 8.12 seconds in the observed local run.
-- **Purpose:** Regression verification of the current local test suite, including order validation, matching-engine behaviour, ring-buffer operations, integration, simulator, and latency-monitor coverage.
+- **Date:** October 15, 2026.
+- **Branch:** `feature/ipc-matching-adapter`.
+- **Latest commit:** `1d36673` (`feat: adapt ring-buffer records to matching engine`).
+- **Command:** `.\.venv\Scripts\python.exe -m pytest -v`.
+- **Observed result:** 72 tests passed, 0 failures.
+- **Reported execution time:** 5.27 seconds.
+- **Focused adapter tests:** 5 passed, 0 failures.
+- **Purpose:** Regression verification of the local test suite, including order validation, matching-engine behaviour, ring-buffer operations, integration, simulator, latency monitor, and IPC-to-matching-engine adapter tests.
 
-This result reflects the observed local test run. Confirm that the local branch is synchronized with the latest `main` before treating it as the baseline for the latest remote code. Update this section whenever a new test run produces a different result.
+### Concurrency test observation
+
+An earlier full-suite run had one intermittent failure in `test_ring_buffer_supports_concurrent_producer_and_consumer`, with producer/consumer timeouts. The isolated test subsequently passed, and a complete suite rerun passed all 72 tests in 5.27 seconds. This successful rerun does not establish the root cause of the earlier timeout. Investigate further if the failure recurs.
+
+These results reflect observed local test runs; they are not a claim that every platform or execution will behave identically. Update this section when a new test run produces a different result.

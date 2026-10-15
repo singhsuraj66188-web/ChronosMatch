@@ -108,10 +108,14 @@ These are candidate areas for additional testing. Confirm the intended behaviour
 
 ## 7. Current Baseline
 
-- **Date:** October 14, 2026.
-- **Command:** `python -m pytest -v`.
-- **Observed result:** 72 tests passed, 0 failures.
-- **Reported execution time:** Approximately 1.93 seconds in the observed local run.
-- **Purpose:** Regression verification of the current local test suite, including order validation, matching-engine behaviour, ring-buffer operations, integration, simulator, and latency-monitor coverage.
+- **Date:** October 15, 2026.
+- **Branch:** `test/day6-ipc-reliability`.
+- **Environment:** Windows, Python 3.14.2, pytest 9.1.1.
+- **Full-suite command:** `python -m pytest -v`.
+- **Full-suite result:** 72 tests passed, 0 failures, in 5.57 seconds.
+- **IPC-focused command:** `python -m pytest -v tests/test_ring_buffer.py tests/test_ipc_matching_integration.py`.
+- **IPC-focused result:** 26 tests passed, 0 failures, in 9.11 seconds.
+- **Concurrency repeat check:** `test_ring_buffer_supports_concurrent_producer_and_consumer` passed in 10 consecutive individual runs.
+- **Git checks:** The Day 6 branch was clean, and `git diff --check` reported no whitespace errors.
 
-This result reflects the observed local test run. Confirm that the local branch is synchronized with the latest `main` before treating it as the baseline for the latest remote code. Update this section whenever a new test run produces a different result.
+These results document the observed local test runs. The repeated concurrency passes provide additional evidence of correct producer/consumer operation, but do not establish that the previously observed intermittent timeouts are resolved. Keep that reliability concern open until its cause is understood and the behavior is verified consistently.

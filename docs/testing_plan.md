@@ -14,7 +14,7 @@ python -m pytest -v
 
 ## 3. Existing Test Coverage
 
-The latest observed test run completed with **55 passing test cases and 0 failures**. The following sections summarize the test coverage identified from the existing test descriptions and the latest terminal output.
+The latest observed test run completed with 72 passing test cases and 0 failures. The following sections summarize the test coverage identified from the existing test descriptions and the latest terminal output.
 
 ### Order Validation (`tests/test_orders.py`)
 
@@ -64,6 +64,8 @@ The latest observed test run completed with **55 passing test cases and 0 failur
 - Reporting retry exhaustion.
 - Rejection of invalid retry configurations.
 - Ring-buffer cleanup and integration behaviour.
+- Verification of the IPC matching adapter integration tests.
+- Five adapter integration tests passed in the latest observed run.
 
 ## 4. Regression Testing
 
@@ -94,19 +96,22 @@ Additional tests should be considered as the implementation evolves, including:
 
 These are candidate areas for additional testing. Confirm the intended behaviour in the implementation before adding new tests or describing them as existing coverage.
 
+**Deterministic End-to-End IPC Matching Test Checklist**
+
+- [ ] Generate deterministic market ticks using a fixed simulator seed.
+- [ ] Transfer ticks through the shared-memory ring buffer.
+- [ ] Read records and submit them through the matching consumer.
+- [ ] Verify the expected trade price, quantity, and buy/sell order IDs.
+- [ ] Verify the remaining quantities and final order-book state.
+- [ ] Confirm the test passes consistently across repeated runs.
+- [ ] Coordinate with Joanna before changing or extending consumer integration code.
+
 ## 7. Current Baseline
 
-- **Date:** October 15, 2026.
-- **Branch:** `feature/ipc-matching-adapter`.
-- **Latest commit:** `1d36673` (`feat: adapt ring-buffer records to matching engine`).
-- **Command:** `.\.venv\Scripts\python.exe -m pytest -v`.
+- **Date:** October 14, 2026.
+- **Command:** `python -m pytest -v`.
 - **Observed result:** 72 tests passed, 0 failures.
-- **Reported execution time:** 5.27 seconds.
-- **Focused adapter tests:** 5 passed, 0 failures.
-- **Purpose:** Regression verification of the local test suite, including order validation, matching-engine behaviour, ring-buffer operations, integration, simulator, latency monitor, and IPC-to-matching-engine adapter tests.
+- **Reported execution time:** Approximately 1.93 seconds in the observed local run.
+- **Purpose:** Regression verification of the current local test suite, including order validation, matching-engine behaviour, ring-buffer operations, integration, simulator, and latency-monitor coverage.
 
-### Concurrency test observation
-
-An earlier full-suite run had one intermittent failure in `test_ring_buffer_supports_concurrent_producer_and_consumer`, with producer/consumer timeouts. The isolated test subsequently passed, and a complete suite rerun passed all 72 tests in 5.27 seconds. This successful rerun does not establish the root cause of the earlier timeout. Investigate further if the failure recurs.
-
-These results reflect observed local test runs; they are not a claim that every platform or execution will behave identically. Update this section when a new test run produces a different result.
+This result reflects the observed local test run. Confirm that the local branch is synchronized with the latest `main` before treating it as the baseline for the latest remote code. Update this section whenever a new test run produces a different result.

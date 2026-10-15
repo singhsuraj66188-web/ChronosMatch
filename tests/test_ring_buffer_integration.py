@@ -1,5 +1,6 @@
 import asyncio
 
+from chronosmatch.matching_engine import MatchingEngine
 from ipc.ring_buffer import RingBuffer
 from simulator.market_simulator import Tick, generate_ticks
 from simulator.ring_buffer_integration import transfer_ticks
@@ -214,3 +215,54 @@ def test_ring_buffer_cleanup(tmp_path):
 
     path.unlink()
     assert not path.exists()
+
+def test_simulator_ticks_reach_matching_engine_and_create_trade(tmp_path):
+    async def run_test():
+        path = tmp_path / "matching-integration.dat"
+        engine = MatchingEngine()
+
+        ticks = [
+            Tick(
+                sequence=0,
+                timestamp_ns=100,
+                symbol="SIM",
+                price_ticks=10000,
+                quantity=2,
+                side=2,  # SELL
+            ),
+            Tick(
+                sequence=1,
+                timestamp_ns=200,
+                symbol="SIM",
+                price_ticks=10100,
+                quantity=1,
+                side=1,  # BUY
+            ),
+        ]
+
+        async def produce_ticks():
+            for tick in ticks:
+                yield tick
+
+        with RingBuffer(path, capacity=4, create=True) as ring:
+            result = await transfer_ticks(
+                produce_ticks(),
+                ring,
+                engine=engine,
+            )
+
+        assert result.metrics.successful_writes == 2
+        assert result.metrics.successful_reads == 2
+        assert len(result.trades) == 1
+
+        trade = result.trades[0]
+        assert trade.buy_order_id == 2
+        assert trade.sell_order_id == 1
+        assert trade.price == 10000
+        assert trade.quantity == 1
+
+        assert len(engine.asks) == 1
+        assert engine.asks[0].quantity == 1
+        assert engine.bids == []
+
+    asyncio.run(run_test())

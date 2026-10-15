@@ -109,6 +109,16 @@ These are candidate areas for additional testing. Confirm the intended behaviour
 ## 7. Current Baseline
 
 - **Date:** October 15, 2026.
+- **Current main baseline date:** October 15, 2026.
+- **Current main command:** `.\.venv\Scripts\python.exe -m pytest -v`.
+- **Current main result:** 74 tests passed, 0 failures, in 4.63 seconds.
+- **Current main environment:** Windows, Python 3.14.7.
+- **Purpose:** Regression verification of the current test suite, including order validation, matching-engine behaviour, ring-buffer operations, IPC integration, end-to-end simulator-to-matching-engine processing, and latency-monitor coverage.
+
+This baseline reflects the observed local test run on the updated main branch. Re-run the full test suite after subsequent changes and update this section whenever a new verified test run produces a different result.
+
+### Day 6 IPC reliability verification
+
 - **Branch:** `test/day6-ipc-reliability`.
 - **Environment:** Windows, Python 3.14.2, pytest 9.1.1.
 - **Full-suite command:** `python -m pytest -v`.
@@ -118,4 +128,4 @@ These are candidate areas for additional testing. Confirm the intended behaviour
 - **Concurrency repeat check:** `test_ring_buffer_supports_concurrent_producer_and_consumer` passed in 10 consecutive individual runs.
 - **Git checks:** The Day 6 branch was clean, and `git diff --check` reported no whitespace errors.
 
-These results document the observed local test runs. The repeated concurrency passes provide additional evidence of correct producer/consumer operation, but do not establish that the previously observed intermittent timeouts are resolved. Keep that reliability concern open until its cause is understood and the behavior is verified consistently.
+These results record the Day 6 runs before merging the latest main branch. Although the concurrency test passed in 10 consecutive runs, earlier intermittent timeouts remain unresolved. Keep this reliability concern open until its cause is understood and the behavior is verified consistently.

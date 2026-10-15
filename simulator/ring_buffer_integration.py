@@ -4,6 +4,9 @@ from __future__ import annotations
 import asyncio
 import time
 from collections.abc import AsyncIterator
+from chronosmatch.matching_engine import MatchingEngine
+from chronosmatch.order import Trade
+from ipc.matching_consumer import process_record
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -29,6 +32,7 @@ class IntegrationResult:
         default_factory=LatencyMonitor
     )
     elapsed_ns: int = 0
+    trades: list[Trade] = field(default_factory=list)
 
     @property
     def latency_sample_count(self) -> int:
@@ -42,6 +46,7 @@ async def transfer_ticks(
     max_retries: int = 10,
     retry_interval_ms: float = 1.0,
     poll_interval_ms: float = 0.1,
+    engine: MatchingEngine | None = None,
 ) -> IntegrationResult:
     """Transfer SIM ticks through an existing, initially empty ring buffer.
 
@@ -107,6 +112,9 @@ async def transfer_ticks(
                     **record,
                 }
             )
+
+            if engine is not None:
+                result.trades.extend(process_record(record, engine))
 
     consumer_task = asyncio.create_task(consume())
 

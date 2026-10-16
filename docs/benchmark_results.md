@@ -74,3 +74,48 @@ Workload: 1,000 resting sell orders followed by 1,000 non-crossing buy submissio
 ### Interpretation and limitations
 
 These measurements are local Python microbenchmark results, not end-to-end trading-pipeline latency. They are preliminary and do not establish a general performance guarantee. Further repeated testing, crossing-order benchmarks, and separate shared-memory IPC measurements are required before evaluating the end-to-end 50 Âµs target.
+## Day 7 — Crossing and non-crossing engine benchmark
+
+Date: 16 October 2026
+
+Environment: Windows 10, Python 3.14.7, 64-bit.
+
+Benchmark: `benchmarks/benchmark_engine.py`
+
+Each run measured 1,000 submissions per scenario. Initial order-book setup, order construction, and post-trade correctness checks were excluded from the timed interval.
+
+### Scenario A — Non-crossing submissions
+
+1,000 resting sell orders were prepared before measurement. The benchmark then measured 1,000 buy submissions priced below the resting asks. These orders did not execute trades.
+
+| Run | Median (us) | P95 (us) | P99 (us) |
+|---|---:|---:|---:|
+| 1 | 2.20 | 2.50 | 3.70 |
+| 2 | 2.30 | 2.50 | 3.90 |
+| 3 | 2.30 | 2.50 | 3.60 |
+
+### Scenario B — Actual trade execution
+
+1,000 resting sell orders were prepared before measurement. The benchmark then measured 1,000 crossing buy submissions, each expected to execute one trade for one unit at the resting price.
+
+| Run | Median (us) | P95 (us) | P99 (us) |
+|---|---:|---:|---:|
+| 1 | 1.90 | 2.10 | 2.80 |
+| 2 | 3.00 | 4.60 | 20.10 |
+| 3 | 2.20 | 4.20 | 17.40 |
+
+### Observations
+
+- Non-crossing submission latency was comparatively stable across these three runs.
+- Trade execution showed greater run-to-run variation, particularly at P99.
+- These are local Python microbenchmark measurements. They are not measurements of Cython execution, shared-memory IPC, or end-to-end pipeline latency.
+- Three runs are an initial baseline, not sufficient evidence of stable production performance.
+- Background system activity and runtime effects may contribute to variation, but their causes have not been established.
+
+### Limitations and next steps
+
+- Repeat measurements over more runs and report variation.
+- Benchmark growing-book insertion and multi-order partial fills separately.
+- Measure IPC and end-to-end pipeline latency independently.
+- Compare the Python reference engine with the Cython implementation when the relevant benchmark is ready.
+- Do not claim the end-to-end target of under 50 us is achieved without reproducible full-pipeline measurements.

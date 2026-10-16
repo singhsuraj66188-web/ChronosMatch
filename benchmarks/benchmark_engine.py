@@ -1,3 +1,4 @@
+
 import statistics
 import time
 
@@ -5,11 +6,26 @@ from chronosmatch.matching_engine import MatchingEngine
 from chronosmatch.order import Order, Side
 
 
-def run_benchmark(iterations: int = 1000) -> None:
+def percentile(values: list[int], p: int) -> float:
+    """Return the nearest-rank percentile in microseconds."""
+    ordered = sorted(values)
+    index = max(0, (p * len(ordered) + 99) // 100 - 1)
+    return ordered[index] / 1_000
+
+
+def report(name: str, latencies_ns: list[int]) -> None:
+    print(f"\n{name}")
+    print(f"Samples:          {len(latencies_ns):,}")
+    print(f"Median latency:   {statistics.median(latencies_ns) / 1_000:.2f} us")
+    print(f"P95 latency:      {percentile(latencies_ns, 95):.2f} us")
+    print(f"P99 latency:      {percentile(latencies_ns, 99):.2f} us")
+
+
+def benchmark_non_crossing(iterations: int = 1000) -> list[int]:
+    """Measure non-crossing buys inserted into a growing bid book."""
     engine = MatchingEngine()
 
-    # Build a growing sell book before measuring.
-    # These asks are deliberately priced above the incoming buy orders.
+    # Set up resting asks outside the timed region.
     for i in range(iterations):
         engine.submit_order(
             Order(
@@ -21,10 +37,8 @@ def run_benchmark(iterations: int = 1000) -> None:
             )
         )
 
-    latencies_ns: list[int] = []
+    latencies_ns = []
 
-    # Each buy does not cross the sell book.
-    # The engine must process an increasingly large opposite-side book.
     for i in range(iterations):
         order = Order(
             order_id=iterations + i + 1,
@@ -35,23 +49,78 @@ def run_benchmark(iterations: int = 1000) -> None:
         )
 
         start = time.perf_counter_ns()
-        engine.submit_order(order)
-        latencies_ns.append(time.perf_counter_ns() - start)
+        trades = engine.submit_order(order)
+        elapsed = time.perf_counter_ns() - start
 
-    ordered = sorted(latencies_ns)
+        if trades:
+            raise AssertionError("Non-crossing order unexpectedly traded")
 
-    def percentile(p: float) -> float:
-        index = min(int((p / 100) * len(ordered)), len(ordered) - 1)
-        return ordered[index] / 1_000
+        latencies_ns.append(elapsed)
 
-    print(f"Resting asks:     {iterations:,}")
-    print(f"Buy submissions:  {iterations:,}")
-    print(f"Median latency:   {statistics.median(ordered) / 1_000:.2f} µs")
-    print(f"P95 latency:      {percentile(95):.2f} µs")
-    print(f"P99 latency:      {percentile(99):.2f} µs")
-    print("Scenario: non-crossing buys against a growing sell book.")
-    print("This is a microbenchmark, not end-to-end IPC latency.")
+    return latencies_ns
+
+
+def benchmark_crossing(iterations: int = 1000) -> list[int]:
+    """Measure buys that each execute one trade against a resting ask."""
+    engine = MatchingEngine()
+
+    # Set up one unit of resting sell liquidity per incoming buy.
+    for i in range(iterations):
+        engine.submit_order(
+            Order(
+                order_id=i + 1,
+                side=Side.SELL,
+                price=10_000,
+                quantity=1,
+                timestamp=i,
+            )
+        )
+
+    latencies_ns = []
+
+    for i in range(iterations):
+        order = Order(
+            order_id=iterations + i + 1,
+            side=Side.BUY,
+            price=10_000,
+            quantity=1,
+            timestamp=iterations + i,
+        )
+
+        start = time.perf_counter_ns()
+        trades = engine.submit_order(order)
+        elapsed = time.perf_counter_ns() - start
+
+        # Verify correctness outside the timed region.
+        if len(trades) != 1:
+            raise AssertionError(
+                f"Expected exactly one trade, received {len(trades)}"
+            )
+        if trades[0].price != 10_000 or trades[0].quantity != 1:
+            raise AssertionError("Unexpected trade price or quantity")
+
+        latencies_ns.append(elapsed)
+
+    if engine.asks:
+        raise AssertionError("Some resting asks were unexpectedly left over")
+
+    return latencies_ns
+
+
+def main() -> None:
+    iterations = 1_000
+
+    print("ChronosMatch engine-only microbenchmark")
+    print(f"Iterations per scenario: {iterations:,}")
+    print("Setup is excluded from the timed region.")
+    print("IPC and end-to-end pipeline latency are not measured.")
+
+    non_crossing = benchmark_non_crossing(iterations)
+    report("Scenario 1: Non-crossing submissions", non_crossing)
+
+    crossing = benchmark_crossing(iterations)
+    report("Scenario 2: Actual trade execution", crossing)
 
 
 if __name__ == "__main__":
-    run_benchmark()
+    main()

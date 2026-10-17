@@ -1,7 +1,7 @@
 import asyncio
 
 from chronosmatch.matching_engine import MatchingEngine
-from chronosmatch.order import Order, Side
+from ipc.matching_consumer import process_record
 from ipc.ring_buffer import RingBuffer
 from simulator.market_simulator import Tick
 from simulator.ring_buffer_integration import transfer_ticks
@@ -81,19 +81,12 @@ def test_simulator_ring_buffer_matching_engine_end_to_end(tmp_path):
         (102, 100, 4, 2),
     ]
 
-    # Consume the transferred records using the real matching engine.
+    # Consume transferred records through the real IPC adapter.
     engine = MatchingEngine()
     trades = []
 
     for record in records:
-        order = Order(
-            order_id=record["simulator_sequence"] + 1,
-            side=Side.BUY if record["side"] == 1 else Side.SELL,
-            price=record["price_ticks"],
-            quantity=record["quantity"],
-            timestamp=record["timestamp_ns"],
-        )
-        trades.extend(engine.submit_order(order))
+        trades.extend(process_record(record, engine))
 
     # The first sell matches three units of the resting buy.
     # The second sell matches the remaining two units.

@@ -14,7 +14,7 @@ python -m pytest -v
 
 ## 3. Existing Test Coverage
 
-The latest observed test run completed with 72 passing test cases and 0 failures. The following sections summarize the test coverage identified from the existing test descriptions and the latest terminal output.
+The latest verified Day 9 local run on Windows with Python 3.14.8 completed with 74 passed and 0 failures in 2.12 seconds using python -m pytest -v. This is the current local result; older runs below are retained as historical evidence.
 
 ### Order Validation (`tests/test_orders.py`)
 
@@ -66,6 +66,28 @@ The latest observed test run completed with 72 passing test cases and 0 failures
 - Ring-buffer cleanup and integration behaviour.
 - Verification of the IPC matching adapter integration tests.
 - Five adapter integration tests passed in the latest observed run.
+
+### Day 9 Coverage Evidence Matrix
+
+| Area | Test file(s) | Evidence / status | Remaining gap |
+|---|---|---|---|
+| Order validation | `tests/test_orders.py`, `tests/test_matching_engine.py` | Order ID, price, quantity, and side validation are covered. | Review additional boundary cases if needed. |
+| Matching engine | `tests/test_matching_engine.py` | Price matching, best-price selection, multiple matches, duplicate IDs, and priority rules are covered. | Review standalone coverage for fully filled order removal. |
+| Simulator and latency monitor | `tests/test_simulator.py` | Tick generation, input validation, reproducibility, and latency calculations are documented as covered. | Review exact assertions before extending coverage. |
+| Ring buffer | `tests/test_ring_buffer.py`, `tests/test_ring_buffer_integration.py` | Buffer operations, capacity, wraparound, lifecycle, and integration are documented as covered. | Investigate previously reported intermittent concurrency timeouts. |
+| IPC matching adapter | `tests/test_ipc_matching_integration.py` | Five tests collected. | Review producer-consumer edge cases. |
+| End-to-end pipeline | `tests/test_end_to_end.py` | Verifies transferred records, expected trades, and final order-book state. | Check repeated-run determinism if required by the E2E plan. |
+
+#### Latest Day 9 Local Verification
+
+- **Platform:** Windows (`win32`)
+- **Python:** 3.14.8
+- **Command:** `python -m pytest -v`
+- **Result:** 74 passed, 0 failures
+- **Duration:** 2.12 seconds
+- **Collection check:** 74 tests collected
+
+The collection check confirms test discovery; the full-suite run confirms that all 74 tests passed. This result does not establish exhaustive coverage of every protocol or concurrency scenario.
 
 ## 4. Regression Testing
 

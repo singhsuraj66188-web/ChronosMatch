@@ -78,7 +78,7 @@ The latest verified Day 9 local run on Windows with Python 3.14.8 completed with
 | IPC matching adapter | `tests/test_ipc_matching_integration.py` | Five tests collected. | Review producer-consumer edge cases. |
 | End-to-end pipeline | `tests/test_end_to_end.py` | Verifies transferred records, expected trades, and final order-book state. | Check repeated-run determinism if required by the E2E plan. |
 
-#### Latest Day 9 Local Verification
+#### Latest Day 8 Local Verification
 
 - **Platform:** Windows (`win32`)
 - **Python:** 3.14.8

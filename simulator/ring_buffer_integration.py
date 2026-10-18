@@ -158,8 +158,7 @@ async def transfer_ticks(
 
     finally:
         producer_done.set()
-
-    await consumer_task
+        await consumer_task
     result.elapsed_ns = time.perf_counter_ns() - start_ns
 
     if metrics.successful_writes != metrics.successful_reads:

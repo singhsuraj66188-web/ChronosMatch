@@ -1,99 +1,110 @@
 # ChronosMatch Testing Plan
 
-## 1. Objective
+## 1. Purpose
 
-This document describes the testing approach for the ChronosMatch matching engine, order model, market simulator, latency monitor, and shared-memory ring buffer. The goal is to verify expected behaviour and identify regressions when changes are introduced.
+This document records the existing automated test coverage, verification commands, observed results, and remaining testing gaps for ChronosMatch.
+
+The goal is to keep testing evidence accurate and distinguish verified behaviour from proposed changes or areas that still need investigation.
 
 ## 2. Running the Tests
 
-Activate the project's Python virtual environment and run:
+Run the complete test suite from the project root:
 
-```bash
+```powershell
 python -m pytest -v
+```
+
+To run the ring-buffer tests specifically:
+
+```powershell
+python -m pytest tests/test_ring_buffer.py tests/test_ring_buffer_integration.py -v
 ```
 
 ## 3. Existing Test Coverage
 
-The latest verified Day 9 local run on Windows with Python 3.14.8 completed with 74 passed and 0 failures in 2.12 seconds using python -m pytest -v. This is the current local result; older runs below are retained as historical evidence.
+The latest verified full-suite run on the current local `main` branch completed with 74 passed and 0 failures in 3.99 seconds on Windows using `python -m pytest -v`. Earlier results are retained below as historical evidence.
 
 ### Order Validation (`tests/test_orders.py`)
 
-- Valid buy order creation.
-- Rejection of invalid orders, including invalid order IDs, prices, and quantities.
-- Rejection of invalid order sides.
+Existing tests cover order validation, including order IDs, prices, quantities, and order sides. Related validation cases are also exercised through matching-engine tests.
 
 ### Matching Engine (`tests/test_matching_engine.py`)
 
-- Buy orders matching resting sell orders at the resting price.
-- Sell orders matching resting buy orders at the resting price.
-- Non-crossing orders not trading.
-- Best-price order matching first.
-- Matching against multiple resting orders.
-- Rejection of duplicate active order IDs.
-- Timestamp priority for orders at the same price.
-- Order ID as a tie-breaker when price and timestamp are identical.
+Existing tests cover:
 
-### Market Simulator and Latency Monitor (`tests/test_simulator.py`)
+- Order validation and rejection of invalid orders.
+- Matching at the resting order's price.
+- Non-crossing orders remaining on the book.
+- Best-price matching.
+- Matching multiple orders.
+- Duplicate order IDs.
+- Timestamp priority and order-ID tie-breaking.
+- Matching-engine behaviour exercised through integration and end-to-end tests.
 
-- Verification that the simulator generates the requested number of ticks.
-- Verification of sequential tick numbers and positive price and quantity values.
-- Rejection of negative tick counts.
-- Rejection of invalid intervals, including negative, infinite, and NaN values.
-- Verification that the simulator accepts a zero interval.
-- Verification of reproducible simulator output when using the same seed.
-- Verification of latency summary counts and median.
-- Verification of the summary of an empty latency monitor.
-- Rejection of negative latency durations.
-- Verification of nearest-rank p95 and p99 latency calculations.
-- Verification that the latency monitor maintains a bounded sample window.
-- Verification that zero latency duration is accepted.
-- Rejection of invalid latency window sizes.
+Standalone matching-engine coverage should continue to be reviewed for fully filled order removal and remaining quantities.
 
-### Shared-Memory Ring Buffer (`tests/test_ring_buffer.py` and `tests/test_ring_buffer_integration.py`)
+### Simulator and Latency Monitor (`tests/test_simulator.py`)
 
-- Writing and reading tick records.
-- Reading from an empty buffer.
-- Full-buffer rejection and wraparound behaviour.
-- Rejection of invalid tick data.
-- Preservation of records after closing and reopening the buffer.
-- Rejection of a capacity mismatch when reopening an existing buffer.
-- Rejection of capacities below two.
-- Preservation of values and order during successful transfers.
-- Handling of empty input.
-- Handling of full-buffer conditions and retry behaviour.
-- Reporting retry exhaustion.
-- Rejection of invalid retry configurations.
-- Ring-buffer cleanup and integration behaviour.
-- Verification of the IPC matching adapter integration tests.
-- Five adapter integration tests passed in the latest observed run.
+Existing tests cover simulator tick generation, input validation, reproducibility, and latency calculations. Review the exact assertions before extending coverage so that documented claims remain aligned with the implementation.
+
+### Ring Buffer (`tests/test_ring_buffer.py`, `tests/test_ring_buffer_integration.py`)
+
+Existing tests cover:
+
+- Ring-buffer operations and capacity.
+- Wraparound behaviour.
+- Cleanup and integration behaviour.
+- Separate-process access to the ring buffer.
+- Concurrent producer-consumer operation with timeout checks.
+- Lock release when a write operation raises an exception.
 
 ### Day 9 Coverage Evidence Matrix
 
 | Area | Test file(s) | Evidence / status | Remaining gap |
 |---|---|---|---|
 | Order validation | `tests/test_orders.py`, `tests/test_matching_engine.py` | Order ID, price, quantity, and side validation are covered. | Review additional boundary cases if needed. |
-| Matching engine | `tests/test_matching_engine.py` | Price matching, best-price selection, multiple matches, duplicate IDs, and priority rules are covered. | Review standalone coverage for fully filled order removal. |
+| Matching engine | `tests/test_matching_engine.py`, `tests/test_end_to_end.py` | Matching rules and end-to-end trade verification are covered. | Review standalone matching-engine coverage for fully filled order removal and remaining quantities. |
 | Simulator and latency monitor | `tests/test_simulator.py` | Tick generation, input validation, reproducibility, and latency calculations are documented as covered. | Review exact assertions before extending coverage. |
-| Ring buffer | `tests/test_ring_buffer.py`, `tests/test_ring_buffer_integration.py` | Buffer operations, capacity, wraparound, lifecycle, and integration are documented as covered. | Investigate previously reported intermittent concurrency timeouts. |
-| IPC matching adapter | `tests/test_ipc_matching_integration.py` | Five tests collected. | Review producer-consumer edge cases. |
+| Ring buffer | `tests/test_ring_buffer.py`, `tests/test_ring_buffer_integration.py` | Buffer operations, capacity, wraparound, lifecycle, separate-process access, and concurrent producer-consumer behaviour are covered by existing tests. | Windows lock-contention recovery on the unmerged concurrency branch remains unverified; previously reported intermittent timeouts also remain unresolved. |
+| IPC matching adapter | `tests/test_ipc_matching_integration.py` | Five tests were collected during the coverage review. | Review producer-consumer edge cases. |
 | End-to-end pipeline | `tests/test_end_to_end.py` | Verifies transferred records, expected trades, and final order-book state. | Check repeated-run determinism if required by the E2E plan. |
 
-#### Latest Day 8 Local Verification
+### Day 9 Local Verification — October 18, 2026
+
+- **Branch tested:** Local `main`
+- **Platform:** Windows (`win32`)
+- **Python:** 3.14.8
+- **Focused command:** `python -m pytest tests/test_ring_buffer.py tests/test_ring_buffer_integration.py -v`
+- **Focused result:** 29 passed in 3.07 seconds.
+- **Full-suite command:** `python -m pytest -v`
+- **Full-suite result:** 74 passed, 0 failures, in 3.99 seconds.
+
+The focused and full-suite runs passed on the local `main` branch. The focused tests include separate-process access, concurrent producer-consumer operation, timeout checks, and lock-release behaviour.
+
+A separate, unmerged branch, `test/day9-ring-buffer-concurrency`, proposes retrying Windows lock acquisition after an `OSError`. That branch changes `ipc/ring_buffer.py` and does not add a test file. Its proposed change has not been verified by the test runs recorded above.
+
+**Remaining verification:** Windows lock-contention recovery remains unverified. Review the proposed change with its owner and define the expected failure and retry behaviour before adding a targeted regression test. Keep the previously reported intermittent concurrency timeouts open until they are reproduced or otherwise explained.
+
+The test results establish that the recorded tests passed in this environment; they do not establish exhaustive coverage of every protocol or concurrency scenario.
+
+### Historical Day 8 Local Verification
 
 - **Platform:** Windows (`win32`)
 - **Python:** 3.14.8
 - **Command:** `python -m pytest -v`
-- **Result:** 74 passed, 0 failures
-- **Duration:** 2.12 seconds
-- **Collection check:** 74 tests collected
+- **Result:** 74 passed, 0 failures.
+- **Duration:** 2.12 seconds.
+- **Collection check:** 74 tests collected.
 
-The collection check confirms test discovery; the full-suite run confirms that all 74 tests passed. This result does not establish exhaustive coverage of every protocol or concurrency scenario.
+The Day 8 collection check confirmed test discovery, while the full-suite run confirmed that all 74 tests passed at that time. This result is retained as historical evidence; the Day 9 result above is the latest verified run.
 
 ## 4. Regression Testing
 
-Run the complete test suite after modifying the order model, matching engine, simulator, latency monitor, or ring buffer. Existing tests should continue to pass unless an intentional behaviour change is introduced and reviewed.
+Run the complete test suite after modifying the order model, matching engine, simulator, latency monitor, or ring buffer.
 
-New tests should be added when new functionality or previously untested behaviour is introduced.
+Existing tests should continue to pass unless an intentional behaviour change is introduced and reviewed.
+
+Add new tests when new functionality or previously untested behaviour is introduced.
 
 ## 5. Recording Results
 
@@ -104,6 +115,7 @@ For each test run, record:
 - Command used.
 - Number of tests passed and failed.
 - Any errors or unexpected behaviour.
+- Python version and operating system where relevant.
 
 ## 6. Future Testing
 
@@ -115,10 +127,11 @@ Additional tests should be considered as the implementation evolves, including:
 - Matching-engine behaviour for empty books and additional boundary cases.
 - Simulator behaviour for zero ticks and boundary values for valid intervals.
 - Latency percentile calculations for small sample sizes and rolling-window boundaries.
+- Windows lock-contention recovery and retry behaviour.
 
 These are candidate areas for additional testing. Confirm the intended behaviour in the implementation before adding new tests or describing them as existing coverage.
 
-**Deterministic End-to-End IPC Matching Test Checklist**
+### Deterministic End-to-End IPC Matching Test Checklist
 
 - [ ] Generate deterministic market ticks using a fixed simulator seed.
 - [ ] Transfer ticks through the shared-memory ring buffer.
@@ -128,26 +141,13 @@ These are candidate areas for additional testing. Confirm the intended behaviour
 - [ ] Confirm the test passes consistently across repeated runs.
 - [ ] Coordinate with Joanna before changing or extending consumer integration code.
 
-## 7. Current Baseline
+## 7. Historical Main Baseline
 
 - **Date:** October 15, 2026.
-- **Current main baseline date:** October 15, 2026.
-- **Current main command:** `.\.venv\Scripts\python.exe -m pytest -v`.
-- **Current main result:** 74 tests passed, 0 failures, in 4.63 seconds.
-- **Current main environment:** Windows, Python 3.14.7.
-- **Purpose:** Regression verification of the current test suite, including order validation, matching-engine behaviour, ring-buffer operations, IPC integration, end-to-end simulator-to-matching-engine processing, and latency-monitor coverage.
+- **Recorded main baseline date:** October 15, 2026.
+- **Command:** `.\.venv\Scripts\python.exe -m pytest -v`
+- **Result:** 74 tests passed, 0 failures, in 4.63 seconds.
+- **Environment:** Windows, Python 3.14.7.
+- **Purpose:** Regression verification of the test suite, including order validation, matching-engine behaviour, ring-buffer operations, IPC integration, end-to-end simulator-to-matching-engine processing, and latency-monitor coverage.
 
-This baseline reflects the observed local test run on the updated main branch. Re-run the full test suite after subsequent changes and update this section whenever a new verified test run produces a different result.
-
-### Day 6 IPC reliability verification
-
-- **Branch:** `test/day6-ipc-reliability`.
-- **Environment:** Windows, Python 3.14.2, pytest 9.1.1.
-- **Full-suite command:** `python -m pytest -v`.
-- **Full-suite result:** 72 tests passed, 0 failures, in 5.57 seconds.
-- **IPC-focused command:** `python -m pytest -v tests/test_ring_buffer.py tests/test_ipc_matching_integration.py`.
-- **IPC-focused result:** 26 tests passed, 0 failures, in 9.11 seconds.
-- **Concurrency repeat check:** `test_ring_buffer_supports_concurrent_producer_and_consumer` passed in 10 consecutive individual runs.
-- **Git checks:** The Day 6 branch was clean, and `git diff --check` reported no whitespace errors.
-
-These results record the Day 6 runs before merging the latest main branch. Although the concurrency test passed in 10 consecutive runs, earlier intermittent timeouts remain unresolved. Keep this reliability concern open until its cause is understood and the behavior is verified consistently.
+This is a historical baseline from the recorded local run. The latest Day 9 verification is documented separately above. Re-run the full test suite after subsequent changes and update the evidence when a new verified run produces a different result.

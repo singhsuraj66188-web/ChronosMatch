@@ -3,6 +3,7 @@ from __future__ import annotations
 import mmap
 import os
 import struct
+import time
 from pathlib import Path
 
 if os.name == "nt":
@@ -74,7 +75,18 @@ class RingBuffer:
     def _lock(self) -> None:
         self._file.seek(_LOCK_OFFSET)
         if os.name == "nt":
-            msvcrt.locking(self._file.fileno(), msvcrt.LK_LOCK, 1)
+            while True:
+                try:
+                    msvcrt.locking(
+                        self._file.fileno(),
+                        msvcrt.LK_NBLCK,
+                        1,
+                    )
+                    break
+                except OSError as exc:
+                    if exc.errno != 13:
+                        raise
+                    time.sleep(0.001)
         else:
             fcntl.flock(self._file.fileno(), fcntl.LOCK_EX)
 

@@ -393,3 +393,247 @@ def test_close_waits_for_active_read(tmp_path, monkeypatch):
         # Ensure resources are closed if the test fails before closer starts.
         if close_thread.ident is None:
             ring.close()
+
+
+def test_operations_rejected_after_close(tmp_path):
+    ring = RingBuffer(tmp_path / "closed-ring.bin", capacity=4, create=True)
+    ring.close()
+
+    with pytest.raises(RuntimeError, match="closing or closed"):
+        ring.read()
+
+    with pytest.raises(RuntimeError, match="closing or closed"):
+        ring.write(
+            timestamp_ns=123,
+            price_ticks=2500,
+            quantity=1,
+            side=1,
+        )
+
+
+def test_concurrent_close_calls_are_safe(tmp_path):
+    ring = RingBuffer(tmp_path / "concurrent-close.bin", capacity=4, create=True)
+    entered_flush = threading.Event()
+    release_flush = threading.Event()
+    second_attempting = threading.Event()
+    second_acquired = threading.Event()
+    errors = []
+
+    original_map = ring._map
+    original_lifecycle = ring._lifecycle
+    second_thread = None
+
+    class LifecycleProxy:
+        def __enter__(self):
+            is_second = threading.current_thread() is second_thread
+            if is_second:
+                second_attempting.set()
+
+            result = original_lifecycle.__enter__()
+
+            if is_second:
+                second_acquired.set()
+            return result
+
+        def __exit__(self, *args):
+            return original_lifecycle.__exit__(*args)
+
+        def __getattr__(self, name):
+            return getattr(original_lifecycle, name)
+
+    class MapProxy:
+        def __getattr__(self, name):
+            return getattr(original_map, name)
+
+        def flush(self):
+            entered_flush.set()
+            if not release_flush.wait(timeout=5):
+                raise TimeoutError("test did not release paused close")
+            original_map.flush()
+
+    ring._lifecycle = LifecycleProxy()
+    ring._map = MapProxy()
+
+    def closer():
+        try:
+            ring.close()
+        except Exception as exc:
+            errors.append(exc)
+
+    first = threading.Thread(target=closer, daemon=True)
+    second_thread = threading.Thread(target=closer, daemon=True)
+
+    try:
+        first.start()
+        assert entered_flush.wait(timeout=2), "first close did not reach flush"
+
+        second_thread.start()
+        assert second_attempting.wait(timeout=2), (
+            "second close did not attempt to enter the lifecycle condition"
+        )
+        assert not second_acquired.wait(timeout=0.2), (
+            "second close unexpectedly acquired the lifecycle condition "
+            "while the first close was paused in flush"
+        )
+
+        release_flush.set()
+
+        first.join(timeout=2)
+        second_thread.join(timeout=2)
+
+        assert not first.is_alive(), "first close did not finish"
+        assert not second_thread.is_alive(), "second close did not finish"
+        assert second_acquired.is_set(), "second close never acquired the condition"
+        assert not errors, f"close failed: {errors!r}"
+    finally:
+        release_flush.set()
+        first.join(timeout=2)
+        second_thread.join(timeout=2)
+def test_close_retries_after_map_close_failure(tmp_path):
+    ring = RingBuffer(tmp_path / "close-failure.bin", capacity=4, create=True)
+    original_map = ring._map
+
+    class MapProxy:
+        def __init__(self):
+            self.close_calls = 0
+
+        def __getattr__(self, name):
+            return getattr(original_map, name)
+
+        def close(self):
+            self.close_calls += 1
+            if self.close_calls == 1:
+                raise OSError("simulated transient map close failure")
+            original_map.close()
+
+    proxy = MapProxy()
+    ring._map = proxy
+
+    try:
+        with pytest.raises(OSError, match="simulated transient map close failure"):
+            ring.close()
+
+        assert not original_map.closed
+        assert not ring._file.closed
+        assert not ring._closed
+        assert not ring._closing
+
+        ring.close()
+
+        assert original_map.closed
+        assert ring._file.closed
+        assert ring._closed
+        assert not ring._closing
+        assert proxy.close_calls == 2
+
+        # Closing an already closed ring remains safe.
+        ring.close()
+    finally:
+        if not original_map.closed:
+            original_map.close()
+        if not ring._file.closed:
+            ring._file.close()
+
+
+
+def test_concurrent_close_retries_after_cleanup_failure(tmp_path):
+    ring = RingBuffer(
+        tmp_path / "concurrent-close-failure.bin",
+        capacity=4,
+        create=True,
+    )
+    original_map = ring._map
+    original_lifecycle = ring._lifecycle
+
+    entered_map_close = threading.Event()
+    release_failure = threading.Event()
+    second_attempting = threading.Event()
+    second_acquired = threading.Event()
+    errors = []
+    second_thread = None
+
+    class LifecycleProxy:
+        def __enter__(self):
+            is_second = threading.current_thread() is second_thread
+            if is_second:
+                second_attempting.set()
+
+            original_lifecycle.__enter__()
+
+            if is_second:
+                second_acquired.set()
+            return self
+
+        def __exit__(self, *args):
+            return original_lifecycle.__exit__(*args)
+
+        def __getattr__(self, name):
+            return getattr(original_lifecycle, name)
+
+    class MapProxy:
+        def __init__(self):
+            self.close_calls = 0
+
+        def __getattr__(self, name):
+            return getattr(original_map, name)
+
+        def close(self):
+            self.close_calls += 1
+            if self.close_calls == 1:
+                entered_map_close.set()
+                if not release_failure.wait(timeout=5):
+                    raise TimeoutError("test did not release failed close")
+                raise OSError("simulated transient map close failure")
+            original_map.close()
+
+    proxy = MapProxy()
+    ring._lifecycle = LifecycleProxy()
+    ring._map = proxy
+
+    def closer():
+        try:
+            ring.close()
+        except Exception as exc:
+            errors.append(exc)
+
+    first = threading.Thread(target=closer, daemon=True)
+    second_thread = threading.Thread(target=closer, daemon=True)
+
+    try:
+        first.start()
+        assert entered_map_close.wait(timeout=2), (
+            "first close did not reach mmap.close()"
+        )
+
+        second_thread.start()
+        assert second_attempting.wait(timeout=2), (
+            "second close did not attempt to acquire the lifecycle lock"
+        )
+        assert not second_acquired.wait(timeout=0.2), (
+            "second close acquired the lifecycle lock while cleanup was paused"
+        )
+
+        release_failure.set()
+
+        first.join(timeout=3)
+        second_thread.join(timeout=3)
+
+        assert not first.is_alive(), "first close did not finish"
+        assert not second_thread.is_alive(), "second close got stuck"
+        assert second_acquired.is_set(), "second close never acquired the lock"
+        assert len(errors) == 1
+        assert isinstance(errors[0], OSError)
+        assert str(errors[0]) == "simulated transient map close failure"
+        assert original_map.closed
+        assert ring._file.closed
+        assert ring._closed
+        assert not ring._closing
+        assert proxy.close_calls == 2
+    finally:
+        release_failure.set()
+        first.join(timeout=3)
+        second_thread.join(timeout=3)
+        if not original_map.closed:
+            original_map.close()
+        if not ring._file.closed:
+            ring._file.close()

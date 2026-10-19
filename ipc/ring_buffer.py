@@ -209,34 +209,29 @@ class RingBuffer:
         with self._lifecycle:
             if self._closed:
                 return
+
             if self._closing:
-                while not self._closed:
+                while self._closing:
                     self._lifecycle.wait()
-                return
+                if self._closed:
+                    return
 
             self._closing = True
-            while self._active_ops:
-                self._lifecycle.wait()
-
-            first_error = None
             try:
-                for cleanup in (
-                    self._map.flush,
-                    self._map.close,
-                    self._file.close,
-                ):
-                    try:
-                        cleanup()
-                    except Exception as exc:
-                        if first_error is None:
-                            first_error = exc
+                while self._active_ops:
+                    self._lifecycle.wait()
+
+                # Stop on failure so unfinished cleanup can be retried.
+                if not self._map.closed:
+                    self._map.flush()
+                    self._map.close()
+
+                if not self._file.closed:
+                    self._file.close()
             finally:
-                self._closed = True
+                self._closed = self._map.closed and self._file.closed
+                self._closing = False
                 self._lifecycle.notify_all()
-
-            if first_error is not None:
-                raise first_error
-
     def __enter__(self) -> "RingBuffer":
         return self
 

@@ -137,3 +137,22 @@ def test_latency_monitor_accepts_zero_duration():
 def test_latency_monitor_rejects_invalid_window_size(max_samples):
     with pytest.raises(ValueError):
         LatencyMonitor(max_samples=max_samples)
+
+def test_simulator_timestamp_uses_perf_counter_ns(monkeypatch):
+    from types import SimpleNamespace
+    import simulator.market_simulator as market_simulator
+
+    expected_timestamp = 123456789
+
+    monkeypatch.setattr(
+        market_simulator,
+        "time",
+        SimpleNamespace(
+            perf_counter_ns=lambda: expected_timestamp
+        ),
+    )
+
+    ticks = collect_ticks(count=1)
+
+    assert ticks[0].timestamp_ns == expected_timestamp
+

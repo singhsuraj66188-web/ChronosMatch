@@ -3,6 +3,7 @@ from __future__ import annotations
 import mmap
 import os
 import struct
+import threading
 import time
 from pathlib import Path
 
@@ -39,6 +40,10 @@ class RingBuffer:
 
         self.path = Path(path)
         self.capacity = capacity
+        self._lifecycle = threading.Condition()
+        self._active_ops = 0
+        self._closing = False
+        self._closed = False
         self._size = _DATA_OFFSET + capacity * _RECORD.size
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -71,6 +76,18 @@ class RingBuffer:
             self._map[_HEADER_OFFSET:_DATA_OFFSET] = _HEADER.pack(0, 0)
             self._map.flush()
 
+
+    def _begin_operation(self) -> None:
+        with self._lifecycle:
+            if self._closing or self._closed:
+                raise RuntimeError("RingBuffer is closing or closed")
+            self._active_ops += 1
+
+    def _end_operation(self) -> None:
+        with self._lifecycle:
+            self._active_ops -= 1
+            if self._active_ops == 0:
+                self._lifecycle.notify_all()
 
     def _lock(self) -> None:
         self._file.seek(_LOCK_OFFSET)
@@ -119,16 +136,19 @@ class RingBuffer:
             raise ValueError("quantity must be a positive unsigned 32-bit integer")
         if type(side) is not int or side not in (1, 2):
             raise ValueError("side must be 1 (BUY) or 2 (SELL)")
-        self._lock()
-        try:
-            write_seq, read_seq = self._counters()
 
+        self._begin_operation()
+        locked = False
+        try:
+            self._lock()
+            locked = True
+
+            write_seq, read_seq = self._counters()
             if write_seq - read_seq >= self.capacity:
                 return False
 
             slot = write_seq % self.capacity
             offset = _DATA_OFFSET + slot * _RECORD.size
-
             self._map[offset:offset + _RECORD.size] = _RECORD.pack(
                 write_seq,
                 timestamp_ns,
@@ -136,30 +156,34 @@ class RingBuffer:
                 quantity,
                 side,
             )
-
             self._map[_HEADER_OFFSET:_DATA_OFFSET] = _HEADER.pack(
                 write_seq + 1,
                 read_seq,
             )
             return True
         finally:
-            self._unlock()
+            try:
+                if locked:
+                    self._unlock()
+            finally:
+                self._end_operation()
 
     def read(self) -> dict | None:
-        self._lock()
+        self._begin_operation()
+        locked = False
         try:
-            write_seq, read_seq = self._counters()
+            self._lock()
+            locked = True
 
+            write_seq, read_seq = self._counters()
             if read_seq >= write_seq:
                 return None
 
             slot = read_seq % self.capacity
             offset = _DATA_OFFSET + slot * _RECORD.size
-
             seq, timestamp_ns, price_ticks, quantity, side = _RECORD.unpack(
                 self._map[offset:offset + _RECORD.size]
             )
-
             if seq != read_seq:
                 raise RuntimeError("Ring-buffer sequence mismatch")
 
@@ -167,7 +191,6 @@ class RingBuffer:
                 write_seq,
                 read_seq + 1,
             )
-
             return {
                 "sequence": seq,
                 "timestamp_ns": timestamp_ns,
@@ -176,12 +199,43 @@ class RingBuffer:
                 "side": side,
             }
         finally:
-            self._unlock()
+            try:
+                if locked:
+                    self._unlock()
+            finally:
+                self._end_operation()
 
     def close(self) -> None:
-        self._map.flush()
-        self._map.close()
-        self._file.close()
+        with self._lifecycle:
+            if self._closed:
+                return
+            if self._closing:
+                while not self._closed:
+                    self._lifecycle.wait()
+                return
+
+            self._closing = True
+            while self._active_ops:
+                self._lifecycle.wait()
+
+            first_error = None
+            try:
+                for cleanup in (
+                    self._map.flush,
+                    self._map.close,
+                    self._file.close,
+                ):
+                    try:
+                        cleanup()
+                    except Exception as exc:
+                        if first_error is None:
+                            first_error = exc
+            finally:
+                self._closed = True
+                self._lifecycle.notify_all()
+
+            if first_error is not None:
+                raise first_error
 
     def __enter__(self) -> "RingBuffer":
         return self

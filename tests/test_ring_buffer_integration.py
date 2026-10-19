@@ -1,4 +1,5 @@
 import asyncio
+import pytest
 
 from chronosmatch.matching_engine import MatchingEngine
 from ipc.ring_buffer import RingBuffer
@@ -264,5 +265,61 @@ def test_simulator_ticks_reach_matching_engine_and_create_trade(tmp_path):
         assert len(engine.asks) == 1
         assert engine.asks[0].quantity == 1
         assert engine.bids == []
+
+    asyncio.run(run_test())
+
+def test_consumer_shutdown_drains_buffer_after_value_error():
+    class TrackingBuffer:
+        def __init__(self):
+            self.records = []
+            self.read_calls = 0
+            self.next_sequence = 0
+
+        def write(self, **kwargs):
+            self.records.append(
+                {"sequence": self.next_sequence, **kwargs}
+            )
+            self.next_sequence += 1
+            return True
+
+        def read(self):
+            self.read_calls += 1
+
+            if self.records:
+                return self.records.pop(0)
+
+            return None
+
+    async def run_test():
+        buffer = TrackingBuffer()
+
+        ticks = [
+            Tick(
+                sequence=0,
+                timestamp_ns=100,
+                symbol="SIM",
+                price_ticks=10000,
+                quantity=1,
+                side=1,
+            ),
+            Tick(
+                sequence=1,
+                timestamp_ns=200,
+                symbol="INVALID",
+                price_ticks=10100,
+                quantity=1,
+                side=2,
+            ),
+        ]
+
+        async def produce_ticks():
+            for tick in ticks:
+                yield tick
+
+        with pytest.raises(ValueError, match="only symbol SIM"):
+            await transfer_ticks(produce_ticks(), buffer)
+
+        assert buffer.read_calls >= 2
+        assert buffer.records == []
 
     asyncio.run(run_test())

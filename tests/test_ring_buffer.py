@@ -1,4 +1,5 @@
 import multiprocessing
+import threading
 import time
 
 
@@ -331,3 +332,64 @@ def test_write_rejects_invalid_field_values(tmp_path, field, value):
     with RingBuffer(tmp_path / "invalid-values.bin", capacity=2, create=True) as ring:
         with pytest.raises(ValueError):
             ring.write(**values)
+def test_close_waits_for_active_read(tmp_path, monkeypatch):
+    path = tmp_path / "close-active-read.bin"
+    ring = RingBuffer(path, capacity=4, create=True)
+
+    entered = threading.Event()
+    release = threading.Event()
+    read_errors = []
+    close_errors = []
+
+    original_counters = ring._counters
+
+    def paused_counters():
+        entered.set()
+        if not release.wait(timeout=3):
+            raise TimeoutError("test did not release paused read")
+        return original_counters()
+
+    monkeypatch.setattr(ring, "_counters", paused_counters)
+
+    def reader():
+        try:
+            ring.read()
+        except Exception as exc:
+            read_errors.append(exc)
+
+    def closer():
+        try:
+            ring.close()
+        except Exception as exc:
+            close_errors.append(exc)
+
+    read_thread = threading.Thread(target=reader, daemon=True)
+    close_thread = threading.Thread(target=closer, daemon=True)
+
+    try:
+        read_thread.start()
+        assert entered.wait(timeout=2), "reader did not reach paused section"
+
+        close_thread.start()
+        close_thread.join(timeout=0.2)
+
+        assert close_thread.is_alive(), (
+            "close() returned while read() was still active"
+        )
+
+        release.set()
+        read_thread.join(timeout=2)
+        close_thread.join(timeout=2)
+
+        assert not read_thread.is_alive(), "reader did not finish"
+        assert not close_thread.is_alive(), "closer did not finish"
+        assert not read_errors, f"read failed: {read_errors!r}"
+        assert not close_errors, f"close failed: {close_errors!r}"
+    finally:
+        release.set()
+        read_thread.join(timeout=2)
+        close_thread.join(timeout=2)
+
+        # Ensure resources are closed if the test fails before closer starts.
+        if close_thread.ident is None:
+            ring.close()

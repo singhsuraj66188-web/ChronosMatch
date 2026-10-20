@@ -22,7 +22,7 @@ python -m pytest tests/test_ring_buffer.py tests/test_ring_buffer_integration.py
 
 ## 3. Existing Test Coverage
 
-The latest verified full-suite run on the current local `main` branch completed with 74 passed and 0 failures in 3.99 seconds on Windows using `python -m pytest -v`. Earlier results are retained below as historical evidence.
+The latest verified full-suite run on the `origin/main` baseline (`b865e4d`) completed on 20 October 2026 with 83 passed in 1.96 seconds on Windows using `python -m pytest -v`. Earlier results are retained below as historical evidence.
 
 ### Order Validation (`tests/test_orders.py`)
 
@@ -65,7 +65,7 @@ Existing tests cover:
 | Order validation | `tests/test_orders.py`, `tests/test_matching_engine.py` | Order ID, price, quantity, and side validation are covered. | Review additional boundary cases if needed. |
 | Matching engine | `tests/test_matching_engine.py`, `tests/test_end_to_end.py` | Matching rules and end-to-end trade verification are covered. | Review standalone matching-engine coverage for fully filled order removal and remaining quantities. |
 | Simulator and latency monitor | `tests/test_simulator.py` | Tick generation, input validation, reproducibility, and latency calculations are documented as covered. | Review exact assertions before extending coverage. |
-| Ring buffer | `tests/test_ring_buffer.py`, `tests/test_ring_buffer_integration.py` | Buffer operations, capacity, wraparound, lifecycle, separate-process access, and concurrent producer-consumer behaviour are covered by existing tests. | Windows lock-contention recovery on the unmerged concurrency branch remains unverified; previously reported intermittent timeouts also remain unresolved. |
+| Ring buffer | `tests/test_ring_buffer.py`, `tests/test_ring_buffer_integration.py` | Buffer operations, capacity, wraparound, lifecycle handling, separate-process access, and concurrent producer-consumer behaviour are covered by existing tests. The Day 11 reliability report records 50/50 repeated runs passed and 300 individual test passes. | Continue monitoring for intermittent concurrency failures and add targeted regression tests if new gaps are identified. |
 | IPC matching adapter | `tests/test_ipc_matching_integration.py` | Five tests were collected during the coverage review. | Review producer-consumer edge cases. |
 | End-to-end pipeline | `tests/test_end_to_end.py` | Verifies transferred records, expected trades, and final order-book state. | Check repeated-run determinism if required by the E2E plan. |
 
@@ -86,6 +86,18 @@ A separate, unmerged branch, `test/day9-ring-buffer-concurrency`, proposes retry
 **Remaining verification:** Windows lock-contention recovery remains unverified. Review the proposed change with its owner and define the expected failure and retry behaviour before adding a targeted regression test. Keep the previously reported intermittent concurrency timeouts open until they are reproduced or otherwise explained.
 
 The test results establish that the recorded tests passed in this environment; they do not establish exhaustive coverage of every protocol or concurrency scenario.
+
+### Day 11 Local Verification — October 20, 2026
+
+- **Baseline commit:** `b865e4d` (`origin/main`)
+- **Command:** `python -m pytest -v`
+- **Result:** 83 passed in 1.96 seconds.
+- **Focused end-to-end tests:** 2 passed in 0.14 seconds in the separately recorded focused run.
+- **Lifecycle reliability:** 50 of 50 repeated runs passed, with 300 individual test passes reported in `docs/day11-ring-buffer-reliability.md`.
+
+The full-suite, focused end-to-end, and lifecycle reliability results are separate runs. The focused tests are included in the full-suite count and must not be added to it. The lifecycle reliability results are documented separately from the full-suite result.
+
+The latest run verifies the current recorded test suite on the `origin/main` baseline. It does not establish exhaustive coverage of every concurrency scenario.
 
 ### Historical Day 8 Local Verification
 

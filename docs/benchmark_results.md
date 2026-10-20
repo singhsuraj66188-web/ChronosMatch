@@ -119,3 +119,49 @@ Each run measured 1,000 submissions per scenario. Initial order-book setup, orde
 - Measure IPC and end-to-end pipeline latency independently.
 - Compare the Python reference engine with the Cython implementation when the relevant benchmark is ready.
 - Do not claim the end-to-end target of under 50 us is achieved without reproducible full-pipeline measurements.
+
+## Day 11 — End-to-End Pipeline Benchmark
+
+**Date:** 20 October 2026
+
+**Environment:** Windows 10, Python 3.14.7, 64-bit.
+
+**Benchmark:** `benchmarks/benchmark_e2e.py`
+
+**Workload:** 1,000 synthetic market ticks with ring-buffer capacity 2,048. The benchmark exercised the simulator-to-ring-buffer-to-matching-engine pipeline.
+
+### Results
+
+| Metric | Run 1 | Run 2 |
+|---|---:|---:|
+| Generated ticks | 1,000 | 1,000 |
+| Successful writes | 1,000 | 1,000 |
+| Successful reads | 1,000 | 1,000 |
+| Failed writes | 0 | 0 |
+| Trades executed | 787 | 787 |
+| Total elapsed time | 0.075833 s | 0.056258 s |
+| Reported throughput | 13,186.92 ticks/s | 17,775.28 ticks/s |
+| Median write-to-read latency | 133.50 µs | 133.25 µs |
+| P95 write-to-read latency | 160.50 µs | 154.20 µs |
+| P99 write-to-read latency | 190.00 µs | 216.00 µs |
+
+### Observations
+
+- Both runs processed all 1,000 ticks, with no failed writes and 1,000 successful reads.
+- Both runs executed 787 trades.
+- Median write-to-read latency was similar across the two runs.
+- P95 was slightly lower in Run 2, while P99 was higher, indicating some variation in tail latency.
+- Reported throughput differed between runs. More repeated measurements are needed to establish a representative performance baseline.
+
+### Interpretation and limitations
+
+The latency percentiles measure ring-buffer write-to-read time; they do not measure the complete per-tick path through matching. Total elapsed time includes pipeline setup and shutdown, and the workload uses synthetic ticks rather than real exchange data.
+
+These two runs are preliminary measurements from a local Windows development environment. They do not establish that the end-to-end latency target of under 50 µs has been achieved.
+
+### Next steps
+
+- Repeat the benchmark across additional runs and summarize variation.
+- Investigate tail-latency variability under controlled conditions.
+- Keep matching-engine, IPC, and full-pipeline measurements separate.
+- Verify that the benchmark and its assumptions remain valid against the latest test suite and ring-buffer implementation.

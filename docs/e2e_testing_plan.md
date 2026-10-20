@@ -26,15 +26,19 @@ Verify the pipeline from market simulator ticks through the shared-memory ring b
 
 ## Latest Test Results
 
-**Run date:** 19 October 2026
+**Run date:** 20 October 2026
+**Baseline commit:** `b865e4d` (`origin/main`)
 **Environment:** Windows (`win32`), Python 3.14.8, pytest 9.1.1
 
 | Command | Result |
 |---|---|
-| `python -m pytest -v` | 78 passed in 1.28 seconds |
+| `python -m pytest -v` | 83 passed in 1.96 seconds |
 | Focused simulator-to-engine and end-to-end tests | 2 passed in 0.14 seconds |
+| Ring-buffer lifecycle and concurrency verification | 50 of 50 repeated runs passed; 300 individual test passes reported |
 
-The two focused tests are included in the full suite; do not add them to the full-suite count. Failed and skipped counts were not separately provided in the recorded summaries.
+The two focused tests are included in the full-suite count and must not be added to it. The lifecycle and concurrency results come from a separate verification run documented in `docs/day11-ring-buffer-reliability.md`.
+
+The full-suite result of 83 passed in 1.96 seconds was recorded on the latest `origin/main` baseline. Failed and skipped counts were not separately provided in the recorded summary.
 
 ## Historical Test Results
 

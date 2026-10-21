@@ -771,3 +771,31 @@ def test_same_instance_serializes_writers_at_lock_boundary(tmp_path):
         assert {record["timestamp_ns"] for record in records if record} == {1, 2}
     finally:
         ring.close()
+
+
+def test_unlock_failure_still_ends_operation(tmp_path, monkeypatch):
+    ring = RingBuffer(
+        tmp_path / "unlock-failure.bin",
+        capacity=4,
+        create=True,
+    )
+    original_unlock = ring._unlock
+
+    def fail_unlock():
+        raise RuntimeError("simulated unlock failure")
+
+    monkeypatch.setattr(ring, "_unlock", fail_unlock)
+
+    with pytest.raises(RuntimeError, match="simulated unlock failure"):
+        ring.write(
+            timestamp_ns=1,
+            price_ticks=100,
+            quantity=1,
+            side=1,
+        )
+
+    assert ring._active_ops == 0
+
+    monkeypatch.setattr(ring, "_unlock", original_unlock)
+    ring.close()
+    assert ring._closed

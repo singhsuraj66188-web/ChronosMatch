@@ -165,3 +165,51 @@ These two runs are preliminary measurements from a local Windows development env
 - Investigate tail-latency variability under controlled conditions.
 - Keep matching-engine, IPC, and full-pipeline measurements separate.
 - Verify that the benchmark and its assumptions remain valid against the latest test suite and ring-buffer implementation.
+
+
+## Day 12 - End-to-End Pipeline Benchmark
+
+**Date:** 21 October 2026
+
+**Environment:** Windows 10, Python 3.14.7, 64-bit.
+
+**Benchmark:** `benchmarks/benchmark_e2e.py`
+
+**Workload:** 1,000 synthetic market ticks with ring-buffer capacity 2,048. The benchmark exercised the simulator-to-ring-buffer-to-matching-engine pipeline.
+
+### Results
+
+| Metric | Day 12 Run |
+|---|---:|
+| Generated ticks | 1,000 |
+| Successful writes | 1,000 |
+| Successful reads | 1,000 |
+| Failed writes | 0 |
+| Trades executed | 787 |
+| Total elapsed time | 0.085174 s |
+| Reported throughput | 11,740.71 ticks/s |
+| Write-to-read samples | 1,000 |
+| Median write-to-read latency | 135.80 us |
+| P95 write-to-read latency | 161.30 us |
+| P99 write-to-read latency | 249.20 us |
+
+### Observations
+
+- All 1,000 ticks were written and read successfully, with no failed writes.
+- The pipeline executed 787 trades.
+- Median write-to-read latency was 135.80 us; P95 was 161.30 us and P99 was 249.20 us.
+- Throughput was 11,740.71 ticks/s in this run.
+- These results represent one run and should not be treated as a stable performance baseline.
+
+### Interpretation and limitations
+
+The latency percentiles measure ring-buffer write-to-read time; they do not measure the complete per-tick path through matching. Total elapsed time includes pipeline setup and shutdown. The workload uses synthetic ticks rather than real exchange data.
+
+This is a local Windows development measurement. It does not establish that the end-to-end latency target of under 50 us has been achieved.
+
+### Next steps
+
+- Repeat the benchmark across additional runs and summarize variation.
+- Investigate tail-latency variability under controlled conditions.
+- Keep matching-engine, IPC, and full-pipeline measurements separate.
+- Compare results only when workload, environment, and measurement methodology are sufficiently consistent.

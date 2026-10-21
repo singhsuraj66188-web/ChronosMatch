@@ -41,6 +41,7 @@ class RingBuffer:
         self.path = Path(path)
         self.capacity = capacity
         self._lifecycle = threading.Condition()
+        self._thread_lock = threading.Lock()
         self._active_ops = 0
         self._closing = False
         self._closed = False
@@ -90,29 +91,37 @@ class RingBuffer:
                 self._lifecycle.notify_all()
 
     def _lock(self) -> None:
-        self._file.seek(_LOCK_OFFSET)
-        if os.name == "nt":
-            while True:
-                try:
-                    msvcrt.locking(
-                        self._file.fileno(),
-                        msvcrt.LK_NBLCK,
-                        1,
-                    )
-                    break
-                except OSError as exc:
-                    if exc.errno != 13:
-                        raise
-                    time.sleep(0.001)
-        else:
-            fcntl.flock(self._file.fileno(), fcntl.LOCK_EX)
+        self._thread_lock.acquire()
+        try:
+            self._file.seek(_LOCK_OFFSET)
+            if os.name == "nt":
+                while True:
+                    try:
+                        msvcrt.locking(
+                            self._file.fileno(),
+                            msvcrt.LK_NBLCK,
+                            1,
+                        )
+                        break
+                    except OSError as exc:
+                        if exc.errno != 13:
+                            raise
+                        time.sleep(0.001)
+            else:
+                fcntl.flock(self._file.fileno(), fcntl.LOCK_EX)
+        except BaseException:
+            self._thread_lock.release()
+            raise
 
     def _unlock(self) -> None:
-        self._file.seek(_LOCK_OFFSET)
-        if os.name == "nt":
-            msvcrt.locking(self._file.fileno(), msvcrt.LK_UNLCK, 1)
-        else:
-            fcntl.flock(self._file.fileno(), fcntl.LOCK_UN)
+        try:
+            self._file.seek(_LOCK_OFFSET)
+            if os.name == "nt":
+                msvcrt.locking(self._file.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(self._file.fileno(), fcntl.LOCK_UN)
+        finally:
+            self._thread_lock.release()
 
 
     def _counters(self) -> tuple[int, int]:

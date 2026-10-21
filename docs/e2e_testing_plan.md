@@ -34,17 +34,20 @@ Verify the pipeline from market simulator ticks through the shared-memory ring b
 |---|---|
 | `python -m pytest -v` | 83 passed in 1.96 seconds |
 | Focused simulator-to-engine and end-to-end tests | 2 passed in 0.14 seconds |
-| Ring-buffer lifecycle and concurrency verification | 50 of 50 repeated runs passed; 300 individual test passes reported |
 
-The two focused tests are included in the full-suite count and must not be added to it. The lifecycle and concurrency results come from a separate verification run documented in `docs/day11-ring-buffer-reliability.md`.
+The focused tests are included in the full-suite count and must not be added to it.
 
-The full-suite result of 83 passed in 1.96 seconds was recorded on the latest `origin/main` baseline. Failed and skipped counts were not separately provided in the recorded summary.
+The full-suite result of 83 passed in 1.96 seconds is the latest recorded baseline. Failed and skipped counts were not separately provided in the recorded summary.
+
+**Separate ring-buffer lifecycle and concurrency verification:** Avinash's report in `docs/day11-ring-buffer-reliability.md` records 50 of 50 repeated runs passed, with 300 individual test passes. These results come from a separate verification run and must not be added to either the full-suite or focused-test counts.
 
 ## Historical Test Results
 
 | Run date | Command / branch | Recorded result |
 |---|---|---|
-| 17 October 2026 | `.venv\Scripts\python.exe -m pytest -q`, `feature/day8-e2e-verification` | 74 passed in 6.23 seconds; a separate rerun was recorded as 74 passed in 4.34 seconds |
+| 19 October 2026 | `python -m pytest -v` | 78 passed in 1.28 seconds |
+| 19 October 2026 | Focused simulator-to-engine and end-to-end tests | 2 passed in 0.14 seconds |
+| 17 October 2026 | `.venv\Scripts\python.exe -m pytest -q`, `feature/day8-e2e-verification` | 74 passed in 6.23 seconds; a separate rerun recorded 74 passed in 4.34 seconds |
 | 16 October 2026 | `python -m pytest -v`, reported `main` run | 74 passed in 1.27 seconds |
 | 15 October 2026 | `python -m pytest -v` | 72 passed in 5.22 seconds |
 | 15 October 2026 | Focused ring-buffer and IPC integration tests | 12 passed in 0.23 seconds |

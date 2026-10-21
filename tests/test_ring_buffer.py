@@ -799,3 +799,58 @@ def test_unlock_failure_still_ends_operation(tmp_path, monkeypatch):
     monkeypatch.setattr(ring, "_unlock", original_unlock)
     ring.close()
     assert ring._closed
+
+
+def test_separate_instances_serialize_concurrent_writers(tmp_path):
+    path = tmp_path / "separate-instance-writers.bin"
+    worker_count = 2
+    records_per_worker = 100
+    capacity = worker_count * records_per_worker + 1
+
+    with RingBuffer(path, capacity=capacity, create=True):
+        pass
+
+    barrier = threading.Barrier(worker_count)
+    errors = []
+    errors_lock = threading.Lock()
+
+    def worker(worker_id):
+        try:
+            with RingBuffer(path, capacity=capacity) as ring:
+                barrier.wait(timeout=5)
+                for i in range(records_per_worker):
+                    timestamp = worker_id * records_per_worker + i + 1
+                    if not ring.write(
+                        timestamp_ns=timestamp,
+                        price_ticks=100 + worker_id,
+                        quantity=1,
+                        side=1,
+                    ):
+                        raise AssertionError("unexpected full buffer")
+        except Exception as exc:
+            with errors_lock:
+                errors.append(repr(exc))
+
+    threads = [
+        threading.Thread(target=worker, args=(worker_id,))
+        for worker_id in range(worker_count)
+    ]
+
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=10)
+
+    assert all(not thread.is_alive() for thread in threads), "writer thread timed out"
+    assert not errors, f"writer errors: {errors!r}"
+
+    with RingBuffer(path, capacity=capacity) as ring:
+        records = []
+        while (record := ring.read()) is not None:
+            records.append(record)
+
+    expected = set(range(1, worker_count * records_per_worker + 1))
+    actual = [record["timestamp_ns"] for record in records]
+    assert len(actual) == len(expected)
+    assert set(actual) == expected
+    assert len({record["sequence"] for record in records}) == len(expected)

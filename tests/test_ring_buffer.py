@@ -637,3 +637,137 @@ def test_concurrent_close_retries_after_cleanup_failure(tmp_path):
             original_map.close()
         if not ring._file.closed:
             ring._file.close()
+
+def test_same_instance_serializes_concurrent_writers(tmp_path):
+    path = tmp_path / "same-instance-writers.bin"
+    worker_count = 4
+    records_per_worker = 100
+    ring = RingBuffer(
+        path,
+        capacity=worker_count * records_per_worker + 1,
+        create=True,
+    )
+    start = threading.Barrier(worker_count)
+    errors = []
+    expected = {}
+
+    def writer(worker_id):
+        try:
+            start.wait(timeout=5)
+            for i in range(records_per_worker):
+                timestamp = worker_id * records_per_worker + i + 1
+                price = 1000 + worker_id
+                quantity = i + 1
+                side = worker_id % 2 + 1
+                expected[timestamp] = (price, quantity, side)
+                ring.write(
+                    timestamp_ns=timestamp,
+                    price_ticks=price,
+                    quantity=quantity,
+                    side=side,
+                )
+        except Exception as exc:
+            errors.append(exc)
+
+    threads = [
+        threading.Thread(target=writer, args=(worker_id,))
+        for worker_id in range(worker_count)
+    ]
+
+    try:
+        for thread in threads:
+            thread.start()
+
+        for thread in threads:
+            thread.join(timeout=10)
+
+        assert all(not thread.is_alive() for thread in threads), (
+            "writer thread timed out"
+        )
+        assert not errors, f"writer errors: {errors!r}"
+
+        actual = {}
+        while True:
+            record = ring.read()
+            if record is None:
+                break
+            timestamp = record["timestamp_ns"]
+            assert timestamp not in actual, (
+                f"duplicate record timestamp: {timestamp}"
+            )
+            actual[timestamp] = (
+                record["price_ticks"],
+                record["quantity"],
+                record["side"],
+            )
+
+        assert actual == expected
+        assert len(actual) == worker_count * records_per_worker
+    finally:
+        ring.close()
+
+
+
+def test_same_instance_serializes_writers_at_lock_boundary(tmp_path):
+    path = tmp_path / "lock-contention.bin"
+    ring = RingBuffer(path, capacity=4, create=True)
+
+    first_inside = threading.Event()
+    release_first = threading.Event()
+    second_inside = threading.Event()
+    errors = []
+    first_thread = None
+    second_thread = None
+    original_counters = ring._counters
+
+    def controlled_counters():
+        current = threading.current_thread()
+        if current is first_thread:
+            first_inside.set()
+            if not release_first.wait(timeout=5):
+                raise TimeoutError("timed out waiting to release first writer")
+        elif current is second_thread:
+            second_inside.set()
+        return original_counters()
+
+    def write_record(timestamp):
+        try:
+            ring.write(
+                timestamp_ns=timestamp,
+                price_ticks=100 + timestamp,
+                quantity=1,
+                side=1,
+            )
+        except Exception as exc:
+            errors.append(exc)
+
+    ring._counters = controlled_counters
+    try:
+        first_thread = threading.Thread(target=write_record, args=(1,))
+        second_thread = threading.Thread(target=write_record, args=(2,))
+
+        first_thread.start()
+        assert first_inside.wait(timeout=3), "first writer never entered"
+
+        second_thread.start()
+        assert not second_inside.wait(timeout=0.25), (
+            "second writer entered while first writer held the lock"
+        )
+    finally:
+        release_first.set()
+        if first_thread is not None:
+            first_thread.join(timeout=5)
+        if second_thread is not None:
+            second_thread.join(timeout=5)
+        ring._counters = original_counters
+
+    try:
+        assert not first_thread.is_alive(), "first writer did not finish"
+        assert not second_thread.is_alive(), "second writer did not finish"
+        assert not errors, f"writer errors: {errors!r}"
+
+        records = [ring.read(), ring.read(), ring.read()]
+        assert sum(record is not None for record in records) == 2
+        assert {record["timestamp_ns"] for record in records if record} == {1, 2}
+    finally:
+        ring.close()

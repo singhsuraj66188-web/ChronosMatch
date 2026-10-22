@@ -202,3 +202,49 @@ The current evidence has the following limitations:
 The recorded matching-engine microbenchmarks show low submission latency for the tested workloads. The end-to-end pipeline runs also show successful processing of the synthetic tick workload.
 
 However, the available pipeline latency percentiles measure ring-buffer write-to-read time, not the complete simulator-to-matching-engine path. More repeated measurements and an explicitly defined end-to-end timing boundary are needed before making stronger performance claims.
+
+## 12. End-to-End Pipeline Benchmark — 22 October 2026
+
+### Benchmark setup
+
+- Script: `benchmarks/benchmark_e2e.py`
+- Environment: Local Windows 10 development environment
+- Workload: Synthetic market ticks
+- Pipeline: Simulator → ring buffer → matching engine
+- Ring-buffer capacity: 2,048 (default configuration)
+- Recorded runs: Three runs with 1,000 ticks and one run with 10,000 ticks
+
+### Results
+
+| Metric | Run 1 (1,000 ticks) | Run 2 (1,000 ticks) | Run 3 (1,000 ticks) | Run 4 (10,000 ticks) |
+|---|---:|---:|---:|---:|
+| Generated ticks | 1,000 | 1,000 | 1,000 | 10,000 |
+| Successful writes | 1,000 | 1,000 | 1,000 | 10,000 |
+| Successful reads | 1,000 | 1,000 | 1,000 | 10,000 |
+| Failed writes | 0 | 0 | 0 | 0 |
+| Trades executed | 787 | 787 | 787 | 8,270 |
+| Total elapsed time (s) | 0.765422 | 0.154750 | 0.133453 | 0.744490 |
+| Reported throughput (ticks/s) | 1,306.47 | 6,462.05 | 7,493.29 | 13,432.01 |
+| Write-to-read samples | 1,000 | 1,000 | 1,000 | 10,000 |
+| Median write-to-read latency (µs) | 133.90 | 134.40 | 134.35 | 134.30 |
+| P95 write-to-read latency (µs) | 171.10 | 182.00 | 199.80 | 163.40 |
+| P99 write-to-read latency (µs) | 202.30 | 362.20 | 285.50 | 250.20 |
+
+### Interpretation and limitations
+
+All four runs completed with successful writes and reads for every generated tick, zero failed writes, and the expected reported trade counts for their respective workloads.
+
+The median write-to-read latency remained close to 134 µs across all four runs. However, throughput varied substantially across the 1,000-tick runs, and P95/P99 latency also varied. These observations do not establish the cause of the variation or a stable performance baseline.
+
+The 10,000-tick run reported 13,432.01 ticks/s, with median, P95, and P99 write-to-read latency of 134.30 µs, 163.40 µs, and 250.20 µs, respectively. A single larger run is not sufficient to establish reproducibility.
+
+**Measurement boundary:** The reported latency percentiles measure ring-buffer write-to-read time. They do not measure the complete per-tick path through matching-engine processing. Total elapsed time includes pipeline setup and shutdown. These results therefore do not establish that the complete pipeline meets the 50 µs end-to-end latency target.
+
+The workload uses synthetic ticks rather than real exchange data. These measurements are local development observations and should be retained separately from the historical runs above.
+
+### Recommended follow-up
+
+- Repeat the 10,000-tick benchmark to assess reproducibility.
+- Keep the matching-engine, ring-buffer write-to-read, and full end-to-end latency measurements distinct.
+- Record any future results alongside the exact workload and benchmark configuration.
+- Investigate throughput and tail-latency variability before making stronger performance claims.

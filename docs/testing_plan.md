@@ -22,7 +22,7 @@ python -m pytest tests/test_ring_buffer.py tests/test_ring_buffer_integration.py
 
 ## 3. Existing Test Coverage
 
-The latest verified full-suite run on the `origin/main` baseline (`b865e4d`) completed on 20 October 2026 with 83 passed in 1.96 seconds on Windows using `python -m pytest -v`. Earlier results are retained below as historical evidence.
+The previously verified full-suite run on the `origin/main` baseline (`b865e4d`) completed on 20 October 2026 with 83 passed in 1.96 seconds on Windows using `python -m pytest -v`. Earlier results are retained below as historical evidence.
 
 ### Order Validation (`tests/test_orders.py`)
 
@@ -163,3 +163,20 @@ These are candidate areas for additional testing. Confirm the intended behaviour
 - **Purpose:** Regression verification of the test suite, including order validation, matching-engine behaviour, ring-buffer operations, IPC integration, end-to-end simulator-to-matching-engine processing, and latency-monitor coverage.
 
 This is a historical baseline from the recorded local run. The latest Day 9 verification is documented separately above. Re-run the full test suite after subsequent changes and update the evidence when a new verified run produces a different result.
+
+### Day 13 Local Verification — October 22, 2026
+
+- **Branch:** `docs/day13-testing-baseline`
+- **Tested commit:** `650485d`
+- **Platform:** Windows
+- **Python:** 3.14.8
+- **pytest:** 9.1.1
+- **Command:** `python -m pytest -v`
+- **Result:** 88 passed in 3.17 seconds.
+- **Collected tests:** 88.
+- **Failures:** 0 reported.
+- **Skipped tests:** 0 reported.
+
+This fresh full-suite run verifies that all 88 reported tests passed on the tested commit. Compared with the previously recorded October 20 baseline of 83 passed in 1.96 seconds, the current run reports five additional passing tests. The execution-time difference alone does not establish a performance regression or improvement.
+
+This result is a local verification record. It does not establish exhaustive coverage of all concurrency, lifecycle, or integration scenarios.

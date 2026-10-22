@@ -165,45 +165,7 @@ The total elapsed time and reported throughput describe overall benchmark execut
 
 This result represents a single run, so it should be treated as an observation rather than a stable performance baseline. The workload is synthetic and does not establish performance with real exchange traffic.
 
-## 8. Comparison of Recorded Pipeline Runs
-
-| Date | Runs recorded | Median write-to-read latency | P95 write-to-read latency | P99 write-to-read latency |
-|---|---:|---:|---:|---:|
-| 20 October 2026 | 2 | 133.50 µs and 133.25 µs | 160.50 µs and 154.20 µs | 190.00 µs and 216.00 µs |
-| 21 October 2026 | 1 | 135.80 µs | 161.30 µs | 249.20 µs |
-
-These values are reported separately for each run. The available data does not establish a stable trend or explain the differences in tail latency.
-
-The matching-engine microbenchmark results in earlier sections measure a different part of the system and should not be directly compared with these ring-buffer write-to-read measurements.
-
-## 9. Measurement Limitations
-
-The current evidence has the following limitations:
-
-1. **Synthetic workload:** The pipeline benchmarks use generated ticks, not real exchange traffic.
-2. **Limited repetitions:** The 21 October pipeline result contains only one recorded run.
-3. **Different timing boundaries:** Matching-engine operation latency, ring-buffer write-to-read latency, total elapsed time, and throughput measure different things.
-4. **No full end-to-end latency distribution:** The reported pipeline percentiles do not establish per-tick latency from simulator generation through matching-engine completion.
-5. **Local environment:** The recorded results reflect local benchmark conditions and may vary with system load and environment.
-6. **Tail-latency variation:** Some matching-engine runs have noticeably higher P95 or P99 values. The cause has not been established.
-7. **Performance target not proven:** These results do not establish that the complete pipeline meets a 50 µs end-to-end latency target.
-
-## 10. Recommended Next Steps
-
-- Preserve the existing benchmark results as historical evidence.
-- Run repeated benchmark trials before establishing a stable performance baseline.
-- Keep matching-engine, write-to-read, and full end-to-end measurements clearly separated.
-- If full end-to-end latency is required, ensure the measurement captures the complete path for each tick through matching-engine processing.
-- Record the exact workload, timing boundaries, environment, and number of repetitions for future comparisons.
-- Coordinate any benchmark-code changes with the relevant implementation owners.
-
-## 11. Conclusion
-
-The recorded matching-engine microbenchmarks show low submission latency for the tested workloads. The end-to-end pipeline runs also show successful processing of the synthetic tick workload.
-
-However, the available pipeline latency percentiles measure ring-buffer write-to-read time, not the complete simulator-to-matching-engine path. More repeated measurements and an explicitly defined end-to-end timing boundary are needed before making stronger performance claims.
-
-## 12. End-to-End Pipeline Benchmark — 22 October 2026
+## 8. End-to-End Pipeline Benchmark — 22 October 2026
 
 ### Benchmark setup
 
@@ -248,3 +210,42 @@ The workload uses synthetic ticks rather than real exchange data. These measurem
 - Keep the matching-engine, ring-buffer write-to-read, and full end-to-end latency measurements distinct.
 - Record any future results alongside the exact workload and benchmark configuration.
 - Investigate throughput and tail-latency variability before making stronger performance claims.
+
+## 9. Comparison of Recorded Pipeline Runs
+
+| Date | Runs recorded | Median write-to-read latency | P95 write-to-read latency | P99 write-to-read latency |
+|---|---:|---|---|---|
+| 20 October 2026 | 2 | 133.50, 133.25 µs | 160.50, 154.20 µs | 190.00, 216.00 µs |
+| 21 October 2026 | 1 | 135.80 µs | 161.30 µs | 249.20 µs |
+| 22 October 2026 | 4 | 133.90, 134.40, 134.35, 134.30 µs | 171.10, 182.00, 199.80, 163.40 µs | 202.30, 362.20, 285.50, 250.20 µs |
+
+The values are listed in run order and represent ring-buffer write-to-read latency, not complete per-tick end-to-end latency. The available measurements do not establish a stable performance trend or explain the observed variation.
+
+Matching-engine microbenchmark results measure a different part of the system and should not be directly compared with these write-to-read measurements.
+
+## 10. Measurement Limitations
+
+The current evidence has the following limitations:
+
+1. **Synthetic workload:** The pipeline benchmarks use generated ticks, not real exchange traffic.
+2. **Limited repetitions:** The 21 October pipeline result contains only one recorded run.
+3. **Different timing boundaries:** Matching-engine operation latency, ring-buffer write-to-read latency, total elapsed time, and throughput measure different things.
+4. **No full end-to-end latency distribution:** The reported pipeline percentiles do not establish per-tick latency from simulator generation through matching-engine completion.
+5. **Local environment:** The recorded results reflect local benchmark conditions and may vary with system load and environment.
+6. **Tail-latency variation:** Some matching-engine runs have noticeably higher P95 or P99 values. The cause has not been established.
+7. **Performance target not proven:** These results do not establish that the complete pipeline meets a 50 µs end-to-end latency target.
+
+## 11. Recommended Next Steps
+
+- Preserve the existing benchmark results as historical evidence.
+- Run repeated benchmark trials before establishing a stable performance baseline.
+- Keep matching-engine, write-to-read, and full end-to-end measurements clearly separated.
+- If full end-to-end latency is required, ensure the measurement captures the complete path for each tick through matching-engine processing.
+- Record the exact workload, timing boundaries, environment, and number of repetitions for future comparisons.
+- Coordinate any benchmark-code changes with the relevant implementation owners.
+
+## 12. Conclusion
+
+The recorded matching-engine microbenchmarks show low submission latency for the tested workloads. The end-to-end pipeline runs also show successful processing of the synthetic tick workload.
+
+However, the available pipeline latency percentiles measure ring-buffer write-to-read time, not the complete simulator-to-matching-engine path. More repeated measurements and an explicitly defined end-to-end timing boundary are needed before making stronger performance claims.

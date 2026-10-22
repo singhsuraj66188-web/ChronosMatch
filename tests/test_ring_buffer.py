@@ -47,6 +47,32 @@ def _ring_buffer_consumer(path, count, results):
         results.put(("error", repr(exc)))
 
 
+
+def _ring_buffer_consumer_to_file(path, count, output_path, results):
+    import json
+
+    try:
+        with RingBuffer(path, capacity=8) as ring, open(
+            output_path, "w", encoding="utf-8"
+        ) as output:
+            records_read = 0
+            deadline = time.monotonic() + 25
+
+            while records_read < count:
+                record = ring.read()
+                if record is not None:
+                    output.write(json.dumps(record) + "\\n")
+                    records_read += 1
+                elif time.monotonic() >= deadline:
+                    results.put(("timeout", records_read))
+                    return
+                else:
+                    time.sleep(0.001)
+
+        results.put(("ok", records_read))
+    except Exception as exc:
+        results.put(("error", repr(exc)))
+
 def test_ring_buffer_can_be_opened_by_separate_process(tmp_path):
     path = tmp_path / "process-test.bin"
     count = 4
@@ -856,7 +882,10 @@ def test_separate_instances_serialize_concurrent_writers(tmp_path):
     assert len({record["sequence"] for record in records}) == len(expected)
 
 def test_repeated_concurrent_producer_consumer_preserves_every_field(tmp_path):
+    import json
+
     path = tmp_path / "repeated-concurrent-test.bin"
+    output_path = tmp_path / "consumer-records.jsonl"
     count = 2000
     capacity = 8
     context = multiprocessing.get_context("spawn")
@@ -866,8 +895,8 @@ def test_repeated_concurrent_producer_consumer_preserves_every_field(tmp_path):
         pass
 
     consumer = context.Process(
-        target=_ring_buffer_consumer,
-        args=(str(path), count, results),
+        target=_ring_buffer_consumer_to_file,
+        args=(str(path), count, str(output_path), results),
     )
     producer = context.Process(
         target=_ring_buffer_producer,
@@ -890,11 +919,9 @@ def test_repeated_concurrent_producer_consumer_preserves_every_field(tmp_path):
         errors = [outcome for outcome in outcomes if outcome[0] != "ok"]
         assert not errors, f"concurrent process errors: {errors}"
 
-        records = next(
-            outcome[1]
-            for outcome in outcomes
-            if outcome[0] == "ok" and isinstance(outcome[1], list)
-        )
+        assert output_path.exists()
+        with output_path.open(encoding="utf-8") as output:
+            records = [json.loads(line) for line in output if line.strip()]
 
         expected = [
             {

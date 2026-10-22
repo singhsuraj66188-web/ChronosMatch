@@ -854,3 +854,66 @@ def test_separate_instances_serialize_concurrent_writers(tmp_path):
     assert len(actual) == len(expected)
     assert set(actual) == expected
     assert len({record["sequence"] for record in records}) == len(expected)
+
+def test_repeated_concurrent_producer_consumer_preserves_every_field(tmp_path):
+    path = tmp_path / "repeated-concurrent-test.bin"
+    count = 2000
+    capacity = 8
+    context = multiprocessing.get_context("spawn")
+    results = context.Queue()
+
+    with RingBuffer(path, capacity=capacity, create=True):
+        pass
+
+    consumer = context.Process(
+        target=_ring_buffer_consumer,
+        args=(str(path), count, results),
+    )
+    producer = context.Process(
+        target=_ring_buffer_producer,
+        args=(str(path), count, results),
+    )
+
+    consumer.start()
+    producer.start()
+
+    try:
+        producer.join(timeout=30)
+        consumer.join(timeout=30)
+
+        assert not producer.is_alive(), "producer process timed out"
+        assert not consumer.is_alive(), "consumer process timed out"
+        assert producer.exitcode == 0
+        assert consumer.exitcode == 0
+
+        outcomes = [results.get(timeout=3), results.get(timeout=3)]
+        errors = [outcome for outcome in outcomes if outcome[0] != "ok"]
+        assert not errors, f"concurrent process errors: {errors}"
+
+        records = next(
+            outcome[1]
+            for outcome in outcomes
+            if outcome[0] == "ok" and isinstance(outcome[1], list)
+        )
+
+        expected = [
+            {
+                "sequence": i,
+                "timestamp_ns": i + 100,
+                "price_ticks": i + 200,
+                "quantity": 1,
+                "side": 1,
+            }
+            for i in range(count)
+        ]
+
+        assert len(records) == count
+        assert records == expected
+        assert len({record["sequence"] for record in records}) == count
+    finally:
+        for process in (producer, consumer):
+            if process.is_alive():
+                process.terminate()
+                process.join(timeout=2)
+        results.close()
+        results.join_thread()

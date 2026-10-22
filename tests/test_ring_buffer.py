@@ -61,7 +61,7 @@ def _ring_buffer_consumer_to_file(path, count, output_path, results):
             while records_read < count:
                 record = ring.read()
                 if record is not None:
-                    output.write(json.dumps(record) + "\\n")
+                    output.write(json.dumps(record) + "\n")
                     records_read += 1
                 elif time.monotonic() >= deadline:
                     results.put(("timeout", records_read))

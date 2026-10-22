@@ -155,4 +155,14 @@ def test_simulator_timestamp_uses_perf_counter_ns(monkeypatch):
     ticks = collect_ticks(count=1)
 
     assert ticks[0].timestamp_ns == expected_timestamp
+def test_generated_tick_timestamps_are_valid_and_ordered():
+    ticks = collect_ticks(count=20, seed=42)
 
+    timestamps = [tick.timestamp_ns for tick in ticks]
+
+    assert len(timestamps) == 20
+    assert all(
+        isinstance(timestamp, int) and timestamp > 0
+        for timestamp in timestamps
+    )
+    assert timestamps == sorted(timestamps)

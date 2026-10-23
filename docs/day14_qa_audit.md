@@ -1,7 +1,7 @@
 # ChronosMatch Day 14 QA Audit
 
-**Date:** October 23, 2026  
-**Repository baseline:** `7762c47`  
+**Date:** October 23, 2026
+**Repository baseline:** `7762c47`
 **Scope:** Documentation and test-coverage review only
 
 ## 1. Verification Evidence

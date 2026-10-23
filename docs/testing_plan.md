@@ -162,7 +162,7 @@ These are candidate areas for additional testing. Confirm the intended behaviour
 - **Environment:** Windows, Python 3.14.7.
 - **Purpose:** Regression verification of the test suite, including order validation, matching-engine behaviour, ring-buffer operations, IPC integration, end-to-end simulator-to-matching-engine processing, and latency-monitor coverage.
 
-This is a historical baseline from the recorded local run. The latest Day 9 verification is documented separately above. Re-run the full test suite after subsequent changes and update the evidence when a new verified run produces a different result.
+This is a historical baseline from the recorded local run. The Day 9 verification is retained above as historical evidence. Rerun the full test suite after subsequent changes and update the evidence when a new verified run produces a different result.
 
 ### Day 13 Local Verification — October 22, 2026
 

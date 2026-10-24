@@ -5,11 +5,15 @@ extensions = [
     Extension(
         name="hello",
         sources=["hello.pyx"],
-    )
+    ),
+    Extension(
+        name="cython_orderbook",
+        sources=["cython_orderbook.pyx"],
+    ),
 ]
 
 setup(
-    name="cython-smoke-test",
+    name="chronosmatch-cython-prototype",
     ext_modules=cythonize(
         extensions,
         compiler_directives={"language_level": "3"},

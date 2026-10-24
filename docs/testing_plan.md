@@ -151,7 +151,7 @@ These are candidate areas for additional testing. Confirm the intended behaviour
 - [ ] Verify the expected trade price, quantity, and buy/sell order IDs.
 - [ ] Verify the remaining quantities and final order-book state.
 - [ ] Confirm the test passes consistently across repeated runs.
-- [ ] Coordinate with Joanna before changing or extending consumer integration code.
+- [ ] Coordinate with the currently assigned integration owner or project lead before changing or extending consumer integration code.
 
 ## 7. Historical Main Baseline
 

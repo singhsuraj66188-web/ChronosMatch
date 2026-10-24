@@ -198,3 +198,20 @@ This fresh full-suite run verifies that all 89 collected tests passed on the tes
 Compared with the previously recorded Day 13 run of 88 passed, this run reports one additional passing test. Differences in total execution time alone do not establish a performance regression or improvement.
 
 This is a local verification record for the specified commit and environment. It does not establish exhaustive coverage of all concurrency, lifecycle, or integration scenarios.
+
+### Day 15 Local Verification � October 24, 2026
+
+- **Branch tested:** `main`
+- **Tested commit:** `ade8831`
+- **Platform:** Windows
+- **Python:** 3.14.7
+- **pytest:** 9.1.1
+- **Focused command:** `.\.venv\Scripts\python.exe -m pytest tests/test_simulator.py tests/test_ring_buffer_integration.py -q`
+- **Focused result:** 28 passed in 10.74 seconds.
+- **Full-suite command:** `.\.venv\Scripts\python.exe -m pytest -q`
+- **Full-suite result:** 89 passed in 14.74 seconds.
+- **Full-suite failures:** 0 reported.
+
+Both runs completed successfully on the local checkout at commit `ade8831`. The focused tests cover simulator and ring-buffer integration behaviour; the full suite verifies all 89 collected tests passed in this environment.
+
+These are separate test runs, so their durations are not additive. Execution-time differences from historical runs do not, by themselves, establish a performance regression or improvement. Passing tests also do not establish exhaustive coverage of all concurrency, lifecycle, timestamp, or integration failure scenarios.

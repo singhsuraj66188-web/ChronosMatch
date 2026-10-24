@@ -79,6 +79,6 @@ The benchmark script has been inspected, but no benchmark execution results or s
 
 ## Scope and Limitations
 
-The two named integration and end-to-end tests passed in the latest focused run, and the full suite passed 78 tests. This verifies those test scenarios in the current checkout; it does not establish exhaustive concurrency correctness or production exchange performance.
+The two named integration and end-to-end tests passed in the latest recorded focused run. The 78-pass full-suite result is historical evidence from 19 October 2026; the latest recorded baseline in this document is 83 passed on 20 October 2026. These results do not establish exhaustive concurrency correctness or production exchange performance.
 
 Avoid duplicating existing tests or changing another teammate's implementation without coordination.

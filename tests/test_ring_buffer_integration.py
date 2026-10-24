@@ -156,26 +156,29 @@ def test_retry_then_success():
 
 def test_retry_exhaustion_is_reported():
     class AlwaysFullBuffer:
+        def __init__(self):
+            self.write_calls = 0
+
         def write(self, **kwargs):
+            self.write_calls += 1
             return False
 
         def read(self):
             return None
 
     async def run_test():
-        result = await transfer_ticks(
-            generate_ticks(count=1, interval_ms=0),
-            AlwaysFullBuffer(),
-            max_retries=2,
-            retry_interval_ms=1,
-        )
-
-        assert result.metrics.full_buffer_events == 3
-        assert result.metrics.retry_attempts == 2
-        assert result.metrics.failed_writes == 1
-        assert result.metrics.successful_writes == 0
-        assert result.metrics.successful_reads == 0
-        assert result.latency_sample_count == 0
+        buffer = AlwaysFullBuffer()
+        with pytest.raises(
+            RuntimeError,
+            match="Ring-buffer write failed after 3 attempts",
+        ):
+            await transfer_ticks(
+                generate_ticks(count=1, interval_ms=0),
+                buffer,
+                max_retries=2,
+                retry_interval_ms=1,
+            )
+        assert buffer.write_calls == 3
 
     asyncio.run(run_test())
 
@@ -321,5 +324,51 @@ def test_consumer_shutdown_drains_buffer_after_value_error():
 
         assert buffer.read_calls >= 2
         assert buffer.records == []
+
+    asyncio.run(run_test())
+
+
+def test_consumer_failure_propagates_without_consuming_remaining_ticks():
+    class FailingConsumerBuffer:
+        def __init__(self):
+            self.write_calls = 0
+            self.read_calls = 0
+
+        def write(self, **kwargs):
+            self.write_calls += 1
+            return True
+
+        def read(self):
+            self.read_calls += 1
+            raise RuntimeError("simulated consumer failure")
+
+    async def run_test():
+        buffer = FailingConsumerBuffer()
+        yielded_sequences = []
+
+        async def produce_ticks():
+            for i in range(5):
+                yielded_sequences.append(i)
+                yield Tick(
+                    sequence=i,
+                    timestamp_ns=100 + i,
+                    symbol="SIM",
+                    price_ticks=10_000 + i,
+                    quantity=1,
+                    side=1,
+                )
+
+        with pytest.raises(
+            RuntimeError, match="simulated consumer failure"
+        ):
+            await transfer_ticks(
+                produce_ticks(),
+                buffer,
+                retry_interval_ms=1,
+            )
+
+        assert buffer.read_calls == 1
+        assert buffer.write_calls <= 1
+        assert len(yielded_sequences) <= 1
 
     asyncio.run(run_test())

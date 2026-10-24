@@ -70,13 +70,9 @@ async def transfer_ticks(
     metrics = IntegrationMetrics()
     result = IntegrationResult(metrics=metrics)
     producer_done = asyncio.Event()
-
-    # These mappings assume the buffer starts empty, so its first sequence
-    # number is zero. Use a fresh buffer for each benchmark/test run.
     start_times: dict[int, int] = {}
     simulator_sequences: dict[int, int] = {}
     next_buffer_sequence = 0
-
     start_ns = time.perf_counter_ns()
 
     async def consume() -> None:
@@ -85,7 +81,7 @@ async def transfer_ticks(
 
             if record is None:
                 if producer_done.is_set():
-                    break
+                    return
                 await asyncio.sleep(poll_interval_ms / 1000)
                 continue
 
@@ -104,7 +100,6 @@ async def transfer_ticks(
             latency_ns = time.perf_counter_ns() - started_ns
             result.latency_monitor.record(latency_ns)
             metrics.successful_reads += 1
-
             result.transferred_ticks.append(
                 {
                     "simulator_sequence": simulator_sequence,
@@ -118,8 +113,13 @@ async def transfer_ticks(
 
     consumer_task = asyncio.create_task(consume())
 
-    try:
+    async def produce() -> None:
+        nonlocal next_buffer_sequence
+
         async for tick in ticks:
+            if consumer_task.done():
+                consumer_task.result()
+
             if tick.symbol != "SIM":
                 raise ValueError(
                     "This initial integration supports only symbol SIM"
@@ -129,6 +129,9 @@ async def transfer_ticks(
             retries_used = 0
 
             while True:
+                if consumer_task.done():
+                    consumer_task.result()
+
                 written = ring.write(
                     timestamp_ns=tick.timestamp_ns,
                     price_ticks=tick.price_ticks,
@@ -144,21 +147,78 @@ async def transfer_ticks(
                     break
 
                 metrics.full_buffer_events += 1
-
                 if retries_used >= max_retries:
                     metrics.failed_writes += 1
-                    break
+                    raise RuntimeError(
+                        f"Ring-buffer write failed after "
+                        f"{retries_used + 1} attempts"
+                    )
 
                 retries_used += 1
                 metrics.retry_attempts += 1
                 await asyncio.sleep(retry_interval_ms / 1000)
 
-            # Yield so the consumer can drain the buffer.
             await asyncio.sleep(0)
+    producer_task = asyncio.create_task(produce())
+
+    producer_error = None
+
+    try:
+        await asyncio.wait(
+            {producer_task, consumer_task},
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+
+        # A consumer read failure takes priority, even if both tasks finished.
+        if consumer_task.done():
+            if consumer_task.cancelled():
+                raise asyncio.CancelledError()
+
+            consumer_error = consumer_task.exception()
+            if consumer_error is not None:
+                if not producer_task.done():
+                    producer_task.cancel()
+                try:
+                    await producer_task
+                except BaseException:
+                    pass
+                raise consumer_error
+
+        # The producer finished first. Preserve accepted records by draining.
+        try:
+            await producer_task
+        except asyncio.CancelledError:
+            raise
+        except BaseException as exc:
+            producer_error = exc
+
+        producer_done.set()
+
+        try:
+            await consumer_task
+        except BaseException as exc:
+            raise exc
+
+        if producer_error is not None:
+            raise producer_error
 
     finally:
         producer_done.set()
-        await consumer_task
+
+        if not producer_task.done():
+            producer_task.cancel()
+        try:
+            await producer_task
+        except BaseException:
+            # Cleanup must not mask the selected pipeline exception.
+            pass
+
+        if not consumer_task.done():
+            try:
+                await consumer_task
+            except BaseException:
+                pass
+
     result.elapsed_ns = time.perf_counter_ns() - start_ns
 
     if metrics.successful_writes != metrics.successful_reads:

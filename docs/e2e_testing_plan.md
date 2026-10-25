@@ -82,3 +82,21 @@ The benchmark script has been inspected, but no benchmark execution results or s
 The two named integration and end-to-end tests passed in the latest recorded focused run. The 78-pass full-suite result is historical evidence from 19 October 2026; the latest recorded baseline in this document is 83 passed on 20 October 2026. These results do not establish exhaustive concurrency correctness or production exchange performance.
 
 Avoid duplicating existing tests or changing another teammate's implementation without coordination.
+
+## Day 16 QA Review — Evidence and Coverage
+
+### Source-level review
+
+- Reviewed the end-to-end test flow from simulator events through the ring buffer to the matching engine.
+- `test_simulator_ring_buffer_matching_engine_end_to_end` checks trade details and the final order-book state.
+- `test_simulator_ticks_reach_matching_engine_and_create_trade` checks trade creation at price `10000`, quantity `1`, buy order ID `2`, and sell order ID `1`; one unit remains on the ask book.
+- These checks describe assertions in the test source. They do not, by themselves, establish that the tests were executed successfully during this review.
+
+### Evidence limitations and follow-ups
+
+- Keep ring-buffer write-to-read latency separate from end-to-end matching-engine latency.
+- Historical test counts should remain tied to their recorded runs and commits. Do not treat source inspection as a fresh test run.
+- The reported 90-pass result is not independently verified here because its supporting execution output or verified CI record has not been established.
+- The exact commit associated with the Day 14 full-suite result still needs confirmation.
+- E2E benchmark execution and repeatability need supporting benchmark evidence; coordinate with the benchmark owner rather than duplicating benchmark work.
+- Confirm ownership for simulator-to-matching-engine integration follow-ups.

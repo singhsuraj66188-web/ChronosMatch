@@ -249,3 +249,43 @@ The current evidence has the following limitations:
 The recorded matching-engine microbenchmarks show low submission latency for the tested workloads. The end-to-end pipeline runs also show successful processing of the synthetic tick workload.
 
 However, the available pipeline latency percentiles measure ring-buffer write-to-read time, not the complete simulator-to-matching-engine path. More repeated measurements and an explicitly defined end-to-end timing boundary are needed before making stronger performance claims.
+
+## 13. End-to-End Pipeline Benchmark — 25 October 2026: Repeated Runs
+
+### Benchmark setup
+
+- Script: `benchmarks/benchmark_e2e.py`
+- Environment: Local Windows development environment
+- Workload: 10,000 synthetic market ticks per run
+- Ring-buffer capacity: 2,048
+- Poll interval: 0.1 ms
+- Random seed: 7
+- Recorded runs: 3
+
+### Results
+
+| Metric | Run 1 | Run 2 | Run 3 |
+|---|---:|---:|---:|
+| Generated ticks | 10,000 | 10,000 | 10,000 |
+| Successful writes | 10,000 | 10,000 | 10,000 |
+| Successful reads | 10,000 | 10,000 | 10,000 |
+| Failed writes | 0 | 0 | 0 |
+| Trades executed | 8,270 | 8,270 | 8,270 |
+| Total elapsed time (s) | 0.693028 | 0.631824 | 0.660431 |
+| Reported throughput (ticks/s) | 14,429.43 | 15,827.18 | 15,141.63 |
+| Write-to-read samples | 10,000 | 10,000 | 10,000 |
+| Median write-to-read latency (us) | 145.70 | 143.00 | 139.20 |
+| P95 write-to-read latency (us) | 239.60 | 215.50 | 221.90 |
+| P99 write-to-read latency (us) | 410.10 | 314.70 | 296.30 |
+
+### Interpretation and limitations
+
+All three runs processed 10,000 generated ticks, with 10,000 successful writes, 10,000 successful reads, zero failed writes, and 8,270 reported trades per run.
+
+Median write-to-read latency ranged from 139.20 to 145.70 us. P95 ranged from 215.50 to 239.60 us, P99 ranged from 296.30 to 410.10 us, and throughput ranged from 14,429.43 to 15,827.18 ticks/s.
+
+The consistent record and trade counts provide useful reproducibility evidence, but three runs are insufficient to establish a stable performance baseline or explain timing variation.
+
+**Measurement boundary:** The reported latency percentiles measure ring-buffer write-to-read time, not the complete per-tick path through matching-engine processing. Total elapsed time includes pipeline setup and shutdown.
+
+The workload uses synthetic ticks, not real exchange data. These results do not establish that the complete pipeline meets the 50 us end-to-end latency target.

@@ -372,3 +372,34 @@ def test_consumer_failure_propagates_without_consuming_remaining_ticks():
         assert len(yielded_sequences) <= 1
 
     asyncio.run(run_test())
+
+
+def test_original_processing_error_is_preserved_when_consumer_cleanup_fails():
+    class CleanupFailingBuffer:
+        def __init__(self):
+            self.read_calls = 0
+
+        def write(self, **kwargs):
+            return True
+
+        def read(self):
+            self.read_calls += 1
+            if self.read_calls == 1:
+                return None
+            raise RuntimeError("cleanup failure")
+
+    async def run_test():
+        buffer = CleanupFailingBuffer()
+
+        async def produce_ticks():
+            raise ValueError("original processing failure")
+            yield  # Make this an async generator.
+
+        with pytest.raises(
+            ValueError, match="original processing failure"
+        ):
+            await transfer_ticks(produce_ticks(), buffer)
+
+        assert buffer.read_calls >= 1
+
+    asyncio.run(run_test())

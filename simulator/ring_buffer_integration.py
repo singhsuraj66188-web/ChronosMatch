@@ -196,8 +196,9 @@ async def transfer_ticks(
 
         try:
             await consumer_task
-        except BaseException as exc:
-            raise exc
+        except BaseException:
+            if producer_error is None:
+                raise
 
         if producer_error is not None:
             raise producer_error

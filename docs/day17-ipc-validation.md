@@ -43,4 +43,3 @@ defect requiring a production-code change was identified.
 ## Side validation clarification
 
 In `simulator/market_simulator.py`, console output maps any side other than `1` to `SELL`. This behavior applies to display output only. The ring buffer rejects invalid side codes, and `ipc/matching_consumer.py` validates side codes before constructing matching-engine orders.
-

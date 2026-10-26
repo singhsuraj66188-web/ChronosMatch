@@ -215,3 +215,16 @@ This is a local verification record for the specified commit and environment. It
 Both runs completed successfully on the local checkout at commit `ade8831`. The focused tests cover simulator and ring-buffer integration behaviour; the full suite verifies all 89 collected tests passed in this environment.
 
 These are separate test runs, so their durations are not additive. Execution-time differences from historical runs do not, by themselves, establish a performance regression or improvement. Passing tests also do not establish exhaustive coverage of all concurrency, lifecycle, timestamp, or integration failure scenarios.
+
+### Day 17 Local Verification — October 26, 2026
+
+- **Branch:** `docs/day17-simulator-coverage`
+- **Tested commit:** `2cccf7a`
+- **Platform:** Windows 11
+- **Python:** 3.14.8
+- **pytest:** 9.1.1
+- **Command:** `python -m pytest -v`
+- **Result:** 99 passed in 3.31 seconds.
+- **Failures/skips:** Not separately confirmed from the available summary.
+
+This fresh full-suite run passed on the tested commit. It is a local verification result and does not establish exhaustive coverage of all integration, concurrency, or lifecycle scenarios.

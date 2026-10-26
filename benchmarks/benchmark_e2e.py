@@ -7,7 +7,6 @@ import time
 
 from chronosmatch.matching_engine import MatchingEngine
 from ipc.ring_buffer import RingBuffer
-from monitoring.latency_monitor import LatencyMonitor
 from simulator.market_simulator import generate_ticks
 from simulator.ring_buffer_integration import transfer_ticks
 
@@ -35,6 +34,7 @@ async def run_benchmark(
     elapsed_ns = time.perf_counter_ns() - start_ns
 
     metrics = result.metrics
+
     if metrics.successful_writes != count:
         raise AssertionError(
             f"Expected {count} writes, got {metrics.successful_writes}"
@@ -49,31 +49,62 @@ async def run_benchmark(
         )
     if result.latency_sample_count != count:
         raise AssertionError(
-            f"Expected {count} latency samples, "
+            f"Expected {count} pipeline latency samples, "
             f"got {result.latency_sample_count}"
         )
 
-    summary = result.latency_monitor.summary()
+    pipeline_summary = result.latency_monitor.summary()
+    matching_summary = result.matching_latency_monitor.summary()
+
+    if matching_summary["count"] != count:
+        raise AssertionError(
+            f"Expected {count} matching-processing latency samples, "
+            f"got {matching_summary['count']}"
+        )
+
     elapsed_seconds = elapsed_ns / 1_000_000_000
     throughput = count / elapsed_seconds if elapsed_seconds > 0 else 0.0
 
     print("\nChronosMatch end-to-end pipeline benchmark")
     print("------------------------------------------")
-    print(f"Generated ticks:             {count:,}")
-    print(f"Successful writes:           {metrics.successful_writes:,}")
-    print(f"Successful reads:            {metrics.successful_reads:,}")
-    print(f"Failed writes:                {metrics.failed_writes:,}")
-    print(f"Trades executed:              {len(result.trades):,}")
-    print(f"Total elapsed time:           {elapsed_seconds:.6f} s")
-    print(f"Pipeline throughput:          {throughput:,.2f} ticks/s")
-    print(f"Write-to-read samples:         {summary['count']:,}")
-    print(f"Write-to-read median:          {summary['median_us']:.2f} us")
-    print(f"Write-to-read P95:             {summary['p95_us']:.2f} us")
-    print(f"Write-to-read P99:             {summary['p99_us']:.2f} us")
-    print("\nNote: latency percentiles measure ring-buffer write to read.")
-    print("Total elapsed time includes pipeline setup and shutdown.")
-    print("This is not a per-tick latency measurement through matching.")
-    print("Synthetic ticks only; no real exchange data is used.")
+    print(f"Generated ticks:                      {count:,}")
+    print(f"Successful writes:                    {metrics.successful_writes:,}")
+    print(f"Successful reads:                     {metrics.successful_reads:,}")
+    print(f"Failed writes:                        {metrics.failed_writes:,}")
+    print(f"Trades executed:                      {len(result.trades):,}")
+    print(f"Total elapsed time:                   {elapsed_seconds:.6f} s")
+    print(f"Pipeline throughput:                  {throughput:,.2f} ticks/s")
+
+    print("\nProducer-start-to-consumer-read latency")
+    print("---------------------------------------")
+    print(f"Samples:                              {pipeline_summary['count']:,}")
+    print(f"Median:                               {pipeline_summary['median_us']:.2f} us")
+    print(f"P95:                                  {pipeline_summary['p95_us']:.2f} us")
+    print(f"P99:                                  {pipeline_summary['p99_us']:.2f} us")
+
+    print("\nMatching-processing latency")
+    print("---------------------------")
+    print(f"Samples:                              {matching_summary['count']:,}")
+    print(f"Median:                               {matching_summary['median_us']:.2f} us")
+    print(f"P95:                                  {matching_summary['p95_us']:.2f} us")
+    print(f"P99:                                  {matching_summary['p99_us']:.2f} us")
+
+    print("\nNotes:")
+    print(
+        "- Producer-start-to-consumer-read latency starts at the producer's "
+        "initial tick-processing point and ends when the consumer reads "
+        "the record; producer retries may contribute to this measurement."
+    )
+    print(
+        "- Matching-processing latency measures the time spent inside "
+        "process_record() for each record."
+    )
+    print(
+        "- These are separate measurements. Neither should be presented "
+        "as the complete end-to-end matching latency."
+    )
+    print("- Total elapsed time includes pipeline setup and shutdown.")
+    print("- Synthetic ticks only; no real exchange data is used.")
 
 
 def main() -> None:

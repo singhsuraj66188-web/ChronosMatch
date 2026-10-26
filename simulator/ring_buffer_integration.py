@@ -4,12 +4,12 @@ from __future__ import annotations
 import asyncio
 import time
 from collections.abc import AsyncIterator
-from chronosmatch.matching_engine import MatchingEngine
-from chronosmatch.order import Trade
-from ipc.matching_consumer import process_record
 from dataclasses import dataclass, field
 from typing import Any
 
+from chronosmatch.matching_engine import MatchingEngine
+from chronosmatch.order import Trade
+from ipc.matching_consumer import process_record
 from ipc.ring_buffer import RingBuffer
 from monitoring.latency_monitor import LatencyMonitor
 from simulator.market_simulator import Tick
@@ -29,6 +29,9 @@ class IntegrationResult:
     metrics: IntegrationMetrics
     transferred_ticks: list[dict[str, Any]] = field(default_factory=list)
     latency_monitor: LatencyMonitor = field(
+        default_factory=LatencyMonitor
+    )
+    matching_latency_monitor: LatencyMonitor = field(
         default_factory=LatencyMonitor
     )
     elapsed_ns: int = 0
@@ -57,6 +60,12 @@ async def transfer_ticks(
     The existing binary record format is unchanged. The SIM symbol and
     simulator sequence are tracked separately because they are not stored
     in the ring-buffer record.
+
+    latency_monitor measures from the producer's initial tick-processing
+    point until the consumer reads the record.
+
+    matching_latency_monitor measures only the time spent processing each
+    record through process_record() when a matching engine is provided.
     """
     if isinstance(max_retries, bool) or not isinstance(max_retries, int):
         raise TypeError("max_retries must be an integer")
@@ -109,7 +118,14 @@ async def transfer_ticks(
             )
 
             if engine is not None:
+                matching_started_ns = time.perf_counter_ns()
                 result.trades.extend(process_record(record, engine))
+                matching_latency_ns = (
+                    time.perf_counter_ns() - matching_started_ns
+                )
+                result.matching_latency_monitor.record(
+                    matching_latency_ns
+                )
 
     consumer_task = asyncio.create_task(consume())
 
@@ -159,8 +175,8 @@ async def transfer_ticks(
                 await asyncio.sleep(retry_interval_ms / 1000)
 
             await asyncio.sleep(0)
-    producer_task = asyncio.create_task(produce())
 
+    producer_task = asyncio.create_task(produce())
     producer_error = None
 
     try:

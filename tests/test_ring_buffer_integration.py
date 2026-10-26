@@ -1,4 +1,5 @@
 import asyncio
+
 import pytest
 
 from chronosmatch.matching_engine import MatchingEngine
@@ -51,6 +52,9 @@ def test_successful_transfers_preserve_values_and_order(tmp_path):
             tick["simulator_sequence"] for tick in transferred
         ] == list(range(20))
 
+        # No matching engine was supplied, so no matching samples are recorded.
+        assert result.matching_latency_monitor.summary()["count"] == 0
+
     asyncio.run(run_test())
 
 
@@ -62,12 +66,14 @@ def test_empty_input(tmp_path):
             result = await transfer_ticks(
                 generate_ticks(count=0, interval_ms=0),
                 ring,
+                engine=MatchingEngine(),
             )
 
         assert result.metrics.successful_writes == 0
         assert result.metrics.successful_reads == 0
         assert result.metrics.failed_writes == 0
         assert result.latency_sample_count == 0
+        assert result.matching_latency_monitor.summary()["count"] == 0
         assert result.transferred_ticks == []
 
     asyncio.run(run_test())
@@ -150,6 +156,7 @@ def test_retry_then_success():
         assert result.metrics.retry_attempts == 2
         assert result.metrics.failed_writes == 0
         assert result.latency_sample_count == 1
+        assert result.matching_latency_monitor.summary()["count"] == 0
 
     asyncio.run(run_test())
 
@@ -168,6 +175,7 @@ def test_retry_exhaustion_is_reported():
 
     async def run_test():
         buffer = AlwaysFullBuffer()
+
         with pytest.raises(
             RuntimeError,
             match="Ring-buffer write failed after 3 attempts",
@@ -178,6 +186,7 @@ def test_retry_exhaustion_is_reported():
                 max_retries=2,
                 retry_interval_ms=1,
             )
+
         assert buffer.write_calls == 3
 
     asyncio.run(run_test())
@@ -192,16 +201,12 @@ def test_invalid_retry_configuration():
             return None
 
     async def run_test():
-        try:
+        with pytest.raises(ValueError, match="max_retries"):
             await transfer_ticks(
                 generate_ticks(count=0),
                 UnusedBuffer(),
                 max_retries=-1,
             )
-        except ValueError:
-            return
-
-        raise AssertionError("Negative max_retries should raise ValueError")
 
     asyncio.run(run_test())
 
@@ -219,6 +224,7 @@ def test_ring_buffer_cleanup(tmp_path):
 
     path.unlink()
     assert not path.exists()
+
 
 def test_simulator_ticks_reach_matching_engine_and_create_trade(tmp_path):
     async def run_test():
@@ -259,6 +265,9 @@ def test_simulator_ticks_reach_matching_engine_and_create_trade(tmp_path):
         assert result.metrics.successful_reads == 2
         assert len(result.trades) == 1
 
+        # One matching-processing latency sample per processed record.
+        assert result.matching_latency_monitor.summary()["count"] == 2
+
         trade = result.trades[0]
         assert trade.buy_order_id == 2
         assert trade.sell_order_id == 1
@@ -270,6 +279,7 @@ def test_simulator_ticks_reach_matching_engine_and_create_trade(tmp_path):
         assert engine.bids == []
 
     asyncio.run(run_test())
+
 
 def test_consumer_shutdown_drains_buffer_after_value_error():
     class TrackingBuffer:
@@ -401,5 +411,91 @@ def test_original_processing_error_is_preserved_when_consumer_cleanup_fails():
             await transfer_ticks(produce_ticks(), buffer)
 
         assert buffer.read_calls >= 1
+
+    asyncio.run(run_test())
+
+
+def test_matching_latency_is_not_recorded_without_engine(tmp_path):
+    async def run_test():
+        path = tmp_path / "without-engine.dat"
+
+        ticks = [
+            Tick(
+                sequence=0,
+                timestamp_ns=100,
+                symbol="SIM",
+                price_ticks=10000,
+                quantity=1,
+                side=1,
+            ),
+            Tick(
+                sequence=1,
+                timestamp_ns=200,
+                symbol="SIM",
+                price_ticks=10100,
+                quantity=1,
+                side=2,
+            ),
+        ]
+
+        async def produce_ticks():
+            for tick in ticks:
+                yield tick
+
+        with RingBuffer(path, capacity=4, create=True) as ring:
+            result = await transfer_ticks(produce_ticks(), ring)
+
+        assert result.metrics.successful_reads == 2
+        assert result.latency_sample_count == 2
+        assert result.matching_latency_monitor.summary()["count"] == 0
+
+    asyncio.run(run_test())
+
+
+def test_matching_latency_samples_match_processed_records(tmp_path):
+    async def run_test():
+        path = tmp_path / "matching-latency.dat"
+        engine = MatchingEngine()
+
+        ticks = [
+            Tick(
+                sequence=0,
+                timestamp_ns=100,
+                symbol="SIM",
+                price_ticks=10500,
+                quantity=1,
+                side=2,  # SELL
+            ),
+            Tick(
+                sequence=1,
+                timestamp_ns=200,
+                symbol="SIM",
+                price_ticks=10000,
+                quantity=1,
+                side=1,  # BUY
+            ),
+            Tick(
+                sequence=2,
+                timestamp_ns=300,
+                symbol="SIM",
+                price_ticks=10500,
+                quantity=1,
+                side=1,  # BUY
+            ),
+        ]
+
+        async def produce_ticks():
+            for tick in ticks:
+                yield tick
+
+        with RingBuffer(path, capacity=4, create=True) as ring:
+            result = await transfer_ticks(
+                produce_ticks(),
+                ring,
+                engine=engine,
+            )
+
+        assert result.metrics.successful_reads == 3
+        assert result.matching_latency_monitor.summary()["count"] == 3
 
     asyncio.run(run_test())

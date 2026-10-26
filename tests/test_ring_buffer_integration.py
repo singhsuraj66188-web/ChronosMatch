@@ -200,16 +200,41 @@ def test_invalid_retry_configuration():
         def read(self):
             return None
 
+    # Keep the rest of your existing test code here.
+
+
+@pytest.mark.parametrize(
+    ("parameter", "value"),
+    [
+        ("retry_interval_ms", float("nan")),
+        ("retry_interval_ms", float("inf")),
+        ("retry_interval_ms", float("-inf")),
+        ("poll_interval_ms", float("nan")),
+        ("poll_interval_ms", float("inf")),
+        ("poll_interval_ms", float("-inf")),
+    ],
+)
+def test_integration_rejects_non_finite_timing_intervals(
+    parameter, value
+):
+    class UnusedBuffer:
+        def write(self, **kwargs):
+            return True
+
+        def read(self):
+            return None
+
     async def run_test():
-        with pytest.raises(ValueError, match="max_retries"):
+        kwargs = {parameter: value}
+
+        with pytest.raises(ValueError, match=parameter):
             await transfer_ticks(
                 generate_ticks(count=0),
                 UnusedBuffer(),
-                max_retries=-1,
+                **kwargs,
             )
 
     asyncio.run(run_test())
-
 
 def test_ring_buffer_cleanup(tmp_path):
     path = tmp_path / "cleanup.dat"

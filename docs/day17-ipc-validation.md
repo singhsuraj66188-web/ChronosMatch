@@ -27,3 +27,19 @@ No binary record format or matching-engine changes were made.
 ## Conclusion
 The existing automated test suite passed. No concrete IPC contract
 defect requiring a production-code change was identified.
+
+## Test environment
+
+- Tested code commit SHA: `d6ec2dc4bd0bd73b595d2c8abd23c9aaf609fada`
+- Operating system: Microsoft Windows 10.0.26300
+- Python: 3.14.2
+- pytest: 9.1.1
+
+## Test results
+
+- Deterministic simulator -> ring buffer -> matching engine: 1 passed in 0.11s
+- Full test suite: 99 passed in 5.93s
+
+## Side validation clarification
+
+In `simulator/market_simulator.py`, console output maps any side other than `1` to `SELL`. This behavior applies to display output only. The ring buffer rejects invalid side codes, and `ipc/matching_consumer.py` validates side codes before constructing matching-engine orders.

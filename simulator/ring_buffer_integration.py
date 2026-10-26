@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import math
 import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
@@ -71,11 +72,10 @@ async def transfer_ticks(
         raise TypeError("max_retries must be an integer")
     if max_retries < 0:
         raise ValueError("max_retries cannot be negative")
-    if retry_interval_ms < 0:
-        raise ValueError("retry_interval_ms cannot be negative")
-    if poll_interval_ms <= 0:
-        raise ValueError("poll_interval_ms must be positive")
-
+    if not math.isfinite(retry_interval_ms) or retry_interval_ms < 0:
+        raise ValueError("retry_interval_ms must be finite and non-negative")
+    if not math.isfinite(poll_interval_ms) or poll_interval_ms <= 0:
+        raise ValueError("poll_interval_ms must be finite and positive")
     metrics = IntegrationMetrics()
     result = IntegrationResult(metrics=metrics)
     producer_done = asyncio.Event()

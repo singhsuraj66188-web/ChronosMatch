@@ -289,3 +289,67 @@ The consistent record and trade counts provide useful reproducibility evidence, 
 **Measurement boundary:** The reported latency percentiles measure ring-buffer write-to-read time, not the complete per-tick path through matching-engine processing. Total elapsed time includes pipeline setup and shutdown.
 
 The workload uses synthetic ticks, not real exchange data. These results do not establish that the complete pipeline meets the 50 us end-to-end latency target.
+
+## 14. End-to-End Pipeline Benchmark — 26 October 2026: Three 1,000-Tick Runs
+
+### Benchmark setup
+
+- Script: `benchmarks/benchmark_e2e.py`
+- Environment: Local Windows development environment, Python 3.14.7
+- Workload: 1,000 synthetic market ticks per run
+- Ring-buffer capacity: 2,048 (default configuration)
+- Recorded runs: 3
+- Test baseline before benchmarking: 93 tests passed in 8.95 seconds
+
+### Pipeline results
+
+| Metric | Run 1 | Run 2 | Run 3 |
+|---|---:|---:|---:|
+| Generated ticks | 1,000 | 1,000 | 1,000 |
+| Successful writes | 1,000 | 1,000 | 1,000 |
+| Successful reads | 1,000 | 1,000 | 1,000 |
+| Failed writes | 0 | 0 | 0 |
+| Trades executed | 787 | 787 | 787 |
+| Total elapsed time (s) | 0.067503 | 0.061282 | 0.086487 |
+| Reported throughput (ticks/s) | 14,814.22 | 16,318.06 | 11,562.36 |
+
+### Producer-start-to-consumer-read latency
+
+| Metric | Run 1 | Run 2 | Run 3 |
+|---|---:|---:|---:|
+| Samples | 1,000 | 1,000 | 1,000 |
+| Median latency (us) | 145.00 | 134.00 | 150.50 |
+| P95 latency (us) | 174.70 | 169.50 | 194.90 |
+| P99 latency (us) | 214.30 | 267.10 | 231.20 |
+
+This measurement starts at the producer's initial tick-processing point and ends when the consumer reads the record. Producer retries may contribute to the measured time.
+
+### Matching-processing latency
+
+| Metric | Run 1 | Run 2 | Run 3 |
+|---|---:|---:|---:|
+| Samples | 1,000 | 1,000 | 1,000 |
+| Median latency (us) | 5.40 | 4.70 | 6.65 |
+| P95 latency (us) | 9.40 | 8.20 | 13.40 |
+| P99 latency (us) | 14.00 | 37.00 | 19.80 |
+
+Matching-processing latency measures the time spent inside `process_record()` for each record. It is distinct from producer-start-to-consumer-read latency.
+
+### Interpretation and limitations
+
+All three runs processed 1,000 synthetic ticks, with 1,000 successful writes, 1,000 successful reads, zero failed writes, and 787 reported trades per run.
+
+Throughput ranged from 11,562.36 to 16,318.06 ticks/s. Producer-start-to-consumer-read P99 ranged from 214.30 to 267.10 us. Matching-processing P99 ranged from 14.00 to 37.00 us.
+
+Matching-processing P99 remained below 50 us in these three runs. This does not establish that the complete pipeline meets a 50 us end-to-end latency target: the producer-to-consumer measurement has a different timing boundary, and neither reported percentile measures the complete per-tick path through matching-engine completion.
+
+The variation between runs indicates that further measurements would be useful before establishing a stable performance baseline. These results are local development observations using synthetic data, not production trading measurements.
+
+Total elapsed time includes pipeline setup and shutdown. It should not be interpreted as per-tick latency.
+
+### Recommended follow-up
+
+- Preserve the individual results rather than reporting only the best run.
+- Continue distinguishing producer-start-to-consumer-read latency from matching-processing latency.
+- Record the exact benchmark configuration and environment for future comparisons.
+- Investigate throughput and tail-latency variation before making stronger performance claims.

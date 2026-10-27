@@ -17,7 +17,6 @@ async def run_benchmark(
     poll_interval_ms: float,
     seed: int,
 ) -> None:
-    # Use a fresh buffer for every benchmark run.
     buffer_path = ".e2e_benchmark_ring_buffer.bin"
     engine = MatchingEngine()
 
@@ -32,7 +31,6 @@ async def run_benchmark(
         )
 
     elapsed_ns = time.perf_counter_ns() - start_ns
-
     metrics = result.metrics
 
     if metrics.successful_writes != count:
@@ -49,17 +47,25 @@ async def run_benchmark(
         )
     if result.latency_sample_count != count:
         raise AssertionError(
-            f"Expected {count} pipeline latency samples, "
+            f"Expected {count} producer-to-read latency samples, "
             f"got {result.latency_sample_count}"
         )
 
     pipeline_summary = result.latency_monitor.summary()
     matching_summary = result.matching_latency_monitor.summary()
+    completion_summary = (
+        result.matching_completion_latency_monitor.summary()
+    )
 
     if matching_summary["count"] != count:
         raise AssertionError(
             f"Expected {count} matching-processing latency samples, "
             f"got {matching_summary['count']}"
+        )
+    if completion_summary["count"] != count:
+        raise AssertionError(
+            f"Expected {count} matching-completion latency samples, "
+            f"got {completion_summary['count']}"
         )
 
     elapsed_seconds = elapsed_ns / 1_000_000_000
@@ -89,19 +95,30 @@ async def run_benchmark(
     print(f"P95:                                  {matching_summary['p95_us']:.2f} us")
     print(f"P99:                                  {matching_summary['p99_us']:.2f} us")
 
+    print("\nProducer-start-to-matching-completion latency")
+    print("---------------------------------------------")
+    print(f"Samples:                              {completion_summary['count']:,}")
+    print(f"Median:                               {completion_summary['median_us']:.2f} us")
+    print(f"P95:                                  {completion_summary['p95_us']:.2f} us")
+    print(f"P99:                                  {completion_summary['p99_us']:.2f} us")
+
     print("\nNotes:")
     print(
-        "- Producer-start-to-consumer-read latency starts at the producer's "
-        "initial tick-processing point and ends when the consumer reads "
-        "the record; producer retries may contribute to this measurement."
+        "- Producer-start-to-consumer-read latency ends when the consumer "
+        "reads the record; producer retries may contribute."
     )
     print(
-        "- Matching-processing latency measures the time spent inside "
-        "process_record() for each record."
+        "- Matching-processing latency measures only process_record() "
+        "execution."
     )
     print(
-        "- These are separate measurements. Neither should be presented "
-        "as the complete end-to-end matching latency."
+        "- Producer-start-to-matching-completion latency begins when the "
+        "producer starts processing a yielded tick and ends when "
+        "process_record() returns. It includes waiting for the consumer."
+    )
+    print(
+        "- The matching-completion metric is a per-record measurement, "
+        "not total batch elapsed time."
     )
     print("- Total elapsed time includes pipeline setup and shutdown.")
     print("- Synthetic ticks only; no real exchange data is used.")

@@ -54,6 +54,10 @@ def test_successful_transfers_preserve_values_and_order(tmp_path):
 
         # No matching engine was supplied, so no matching samples are recorded.
         assert result.matching_latency_monitor.summary()["count"] == 0
+        assert (
+            result.matching_completion_latency_monitor.summary()["count"]
+            == 0
+        )
 
     asyncio.run(run_test())
 
@@ -74,6 +78,10 @@ def test_empty_input(tmp_path):
         assert result.metrics.failed_writes == 0
         assert result.latency_sample_count == 0
         assert result.matching_latency_monitor.summary()["count"] == 0
+        assert (
+            result.matching_completion_latency_monitor.summary()["count"]
+            == 0
+        )
         assert result.transferred_ticks == []
 
     asyncio.run(run_test())
@@ -157,6 +165,10 @@ def test_retry_then_success():
         assert result.metrics.failed_writes == 0
         assert result.latency_sample_count == 1
         assert result.matching_latency_monitor.summary()["count"] == 0
+        assert (
+            result.matching_completion_latency_monitor.summary()["count"]
+            == 0
+        )
 
     asyncio.run(run_test())
 
@@ -192,7 +204,18 @@ def test_retry_exhaustion_is_reported():
     asyncio.run(run_test())
 
 
-def test_invalid_retry_configuration():
+@pytest.mark.parametrize(
+    ("parameter", "value", "error"),
+    [
+        ("max_retries", -1, ValueError),
+        ("max_retries", 1.5, TypeError),
+        ("max_retries", True, TypeError),
+        ("retry_interval_ms", -1, ValueError),
+        ("poll_interval_ms", 0, ValueError),
+        ("poll_interval_ms", -1, ValueError),
+    ],
+)
+def test_invalid_retry_configuration(parameter, value, error):
     class UnusedBuffer:
         def write(self, **kwargs):
             return True
@@ -200,7 +223,17 @@ def test_invalid_retry_configuration():
         def read(self):
             return None
 
-    # Keep the rest of your existing test code here.
+    async def run_test():
+        kwargs = {parameter: value}
+
+        with pytest.raises(error, match=parameter):
+            await transfer_ticks(
+                generate_ticks(count=0),
+                UnusedBuffer(),
+                **kwargs,
+            )
+
+    asyncio.run(run_test())
 
 
 @pytest.mark.parametrize(
@@ -235,6 +268,7 @@ def test_integration_rejects_non_finite_timing_intervals(
             )
 
     asyncio.run(run_test())
+
 
 def test_ring_buffer_cleanup(tmp_path):
     path = tmp_path / "cleanup.dat"
@@ -290,8 +324,12 @@ def test_simulator_ticks_reach_matching_engine_and_create_trade(tmp_path):
         assert result.metrics.successful_reads == 2
         assert len(result.trades) == 1
 
-        # One matching-processing latency sample per processed record.
+        # One matching-processing and matching-completion sample per record.
         assert result.matching_latency_monitor.summary()["count"] == 2
+        assert (
+            result.matching_completion_latency_monitor.summary()["count"]
+            == 2
+        )
 
         trade = result.trades[0]
         assert trade.buy_order_id == 2
@@ -473,6 +511,10 @@ def test_matching_latency_is_not_recorded_without_engine(tmp_path):
         assert result.metrics.successful_reads == 2
         assert result.latency_sample_count == 2
         assert result.matching_latency_monitor.summary()["count"] == 0
+        assert (
+            result.matching_completion_latency_monitor.summary()["count"]
+            == 0
+        )
 
     asyncio.run(run_test())
 
@@ -522,5 +564,9 @@ def test_matching_latency_samples_match_processed_records(tmp_path):
 
         assert result.metrics.successful_reads == 3
         assert result.matching_latency_monitor.summary()["count"] == 3
+        assert (
+            result.matching_completion_latency_monitor.summary()["count"]
+            == 3
+        )
 
     asyncio.run(run_test())

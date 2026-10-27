@@ -28,11 +28,16 @@ class IntegrationMetrics:
 @dataclass
 class IntegrationResult:
     metrics: IntegrationMetrics
-    transferred_ticks: list[dict[str, Any]] = field(default_factory=list)
+    transferred_ticks: list[dict[str, Any]] = field(
+        default_factory=list
+    )
     latency_monitor: LatencyMonitor = field(
         default_factory=LatencyMonitor
     )
     matching_latency_monitor: LatencyMonitor = field(
+        default_factory=LatencyMonitor
+    )
+    matching_completion_latency_monitor: LatencyMonitor = field(
         default_factory=LatencyMonitor
     )
     elapsed_ns: int = 0
@@ -67,6 +72,11 @@ async def transfer_ticks(
 
     matching_latency_monitor measures only the time spent processing each
     record through process_record() when a matching engine is provided.
+
+    matching_completion_latency_monitor measures from the producer's
+    initial tick-processing point until process_record() finishes. This
+    includes time waiting for the consumer to read the record. Samples are
+    recorded only when a matching engine is provided.
     """
     if isinstance(max_retries, bool) or not isinstance(max_retries, int):
         raise TypeError("max_retries must be an integer")
@@ -76,6 +86,7 @@ async def transfer_ticks(
         raise ValueError("retry_interval_ms must be finite and non-negative")
     if not math.isfinite(poll_interval_ms) or poll_interval_ms <= 0:
         raise ValueError("poll_interval_ms must be finite and positive")
+
     metrics = IntegrationMetrics()
     result = IntegrationResult(metrics=metrics)
     producer_done = asyncio.Event()
@@ -109,6 +120,7 @@ async def transfer_ticks(
             latency_ns = time.perf_counter_ns() - started_ns
             result.latency_monitor.record(latency_ns)
             metrics.successful_reads += 1
+
             result.transferred_ticks.append(
                 {
                     "simulator_sequence": simulator_sequence,
@@ -119,12 +131,20 @@ async def transfer_ticks(
 
             if engine is not None:
                 matching_started_ns = time.perf_counter_ns()
-                result.trades.extend(process_record(record, engine))
+
+                matching_trades = process_record(record, engine)
+                matching_completed_ns = time.perf_counter_ns()
+
+                result.trades.extend(matching_trades)
+
                 matching_latency_ns = (
-                    time.perf_counter_ns() - matching_started_ns
+                    matching_completed_ns - matching_started_ns
                 )
                 result.matching_latency_monitor.record(
                     matching_latency_ns
+                )
+                result.matching_completion_latency_monitor.record(
+                    matching_completed_ns - started_ns
                 )
 
     consumer_task = asyncio.create_task(consume())
@@ -163,6 +183,7 @@ async def transfer_ticks(
                     break
 
                 metrics.full_buffer_events += 1
+
                 if retries_used >= max_retries:
                     metrics.failed_writes += 1
                     raise RuntimeError(
@@ -191,13 +212,16 @@ async def transfer_ticks(
                 raise asyncio.CancelledError()
 
             consumer_error = consumer_task.exception()
+
             if consumer_error is not None:
                 if not producer_task.done():
                     producer_task.cancel()
+
                 try:
                     await producer_task
                 except BaseException:
                     pass
+
                 raise consumer_error
 
         # The producer finished first. Preserve accepted records by draining.
@@ -224,6 +248,7 @@ async def transfer_ticks(
 
         if not producer_task.done():
             producer_task.cancel()
+
         try:
             await producer_task
         except BaseException:

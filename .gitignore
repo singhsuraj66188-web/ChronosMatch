@@ -17,3 +17,6 @@ dist/
 logs/
 data/
 /cython_test/cython_orderbook.c
+
+# Generated end-to-end benchmark ring buffer
+.e2e_benchmark_ring_buffer.bin

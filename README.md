@@ -4,7 +4,7 @@
 
 ChronosMatch is an educational FinTech engineering project combining a Python limit order book, a synthetic market-data simulator, a shared-memory ring buffer, and a matching consumer. The project focuses on correctness, concurrency, reproducible testing, and careful latency measurement.
 
-> **Project status:** The Python matching engine, simulator-to-ring-buffer integration, IPC consumer, automated tests, and local benchmark scripts are implemented. An experimental Cython order-book prototype is available. Recorded pipeline latency percentiles measure ring-buffer write-to-read time, not complete per-tick latency through matching-engine processing. The full-system 50-microsecond target has **not** been demonstrated.
+**Project status:** The Python matching engine, simulator-to-ring-buffer integration, IPC consumer, automated tests, and local benchmark scripts are implemented. An experimental Cython order-book prototype is available. The end-to-end benchmark reports ring-buffer write-to-read latency and producer-start-to-matching-completion latency, while matching-engine processing latency is measured separately. These metrics have different timing boundaries and must not be treated as interchangeable. The full-system 50-microsecond target has not been demonstrated.
 
 ## Key Features
 
@@ -35,7 +35,7 @@ Matching consumer
 Python limit order book / trade results
 ```
 
-The benchmark scripts cover different timing boundaries. The matching-engine benchmark measures matching operations; the pipeline benchmark reports throughput and ring-buffer write-to-read latency. These metrics must not be treated as interchangeable.
+The benchmark scripts cover different timing boundaries. The matching-engine benchmark measures matching operations, while the end-to-end pipeline benchmark reports throughput, producer-start-to-consumer-read latency, matching-processing latency, and producer-start-to-matching-completion latency. These metrics describe different portions of the pipeline and must not be treated as interchangeable.
 
 ## Technology Stack
 
@@ -129,18 +129,19 @@ See [`docs/benchmark_results.md`](docs/benchmark_results.md) for recorded matchi
 
 Keep these metrics distinct:
 
-- **Matching-engine latency:** the timed matching-engine operation for the documented workload.
-- **Ring-buffer write-to-read latency:** the interval between writing a tick record and reading it from the ring buffer.
-- **Throughput:** processed ticks per second over the benchmark's reported elapsed interval.
-- **Full end-to-end latency:** should measure each tick from the defined pipeline start through matching-engine completion.
+- **Matching-engine latency:** Time spent executing the measured matching-engine operation for the documented workload.
+- **Producer-start-to-consumer-read latency:** Time from the defined producer start to the consumer reading the corresponding tick.
+- **Matching-processing latency:** Time spent processing an individual record through the matching-engine operation.
+- **Producer-start-to-matching-completion latency:** Time from the defined producer start until matching processing for the corresponding tick is complete.
+- **Throughput:** Processed ticks per second over the benchmark's reported elapsed interval.
 
-The recorded pipeline latency percentiles are write-to-read measurements, not full end-to-end matching latency. Results use synthetic data on a local development machine and vary by workload and environment. The 50-microsecond full-system target remains an engineering objective, not a validated result.
+These measurements cover different stages and are not interchangeable. Results use synthetic data on a local development machine and can vary by workload and environment. The 50-microsecond full-system target remains an engineering objective, not a validated result.
 
 ## Current Team
 
-- **Suraj Baliar Singh — Team Lead / Matching Engine, IPC Adapter, and Benchmarking:** coordinates work distribution and integration; develops matching-engine and adapter functionality; records benchmark and test evidence.
-- **Avinash Rajagore — Shared-memory IPC / Ring Buffer:** focuses on ring-buffer reliability, producer/consumer behavior, concurrency, and lifecycle handling.
-- **Samrudhi Gowda — Testing / Documentation:** focuses on test coverage, testing plans, baseline evidence, and documentation reviews.
+- **Suraj Baliar Singh — Team Lead / Matching Engine, IPC Adapter, and Benchmarking:** Coordinates work distribution and integration; develops matching-engine and adapter functionality; records benchmark and test evidence.
+- **Avinash Rajagore — Shared-memory IPC / Ring Buffer:** Focuses on ring-buffer reliability, producer/consumer behavior, concurrency, and lifecycle handling.
+- **Samrudhi Gowda — Testing / Documentation:** Focuses on test coverage, testing plans, baseline evidence, and documentation reviews.
 
 Team contributions should be verified from the relevant commits and pull requests. Active members work on dedicated branches, with changes reviewed and merged into `main`.
 
@@ -154,7 +155,7 @@ Team contributions should be verified from the relevant commits and pull request
 - [x] Record matching-engine and pipeline benchmark results with measurement limitations.
 - [x] Document test procedures and the IPC protocol.
 - [ ] Evaluate and integrate the experimental Cython order-book prototype where appropriate.
-- [ ] Add a clearly defined per-tick full end-to-end latency measurement through matching completion.
+- [x] Add a per-tick producer-start-to-matching-completion latency measurement.
 - [ ] Continue investigating throughput and tail-latency variation.
 - [ ] Complete and demonstrate any remaining dashboard/demo requirements.
 

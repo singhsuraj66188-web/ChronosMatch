@@ -39,19 +39,19 @@ The matching-engine benchmark compared the original implementation with the sort
 
 | Metric | Before optimization | Sorted implementation |
 |---|---:|---:|
-| Median latency | 167.85 µs | 2.50 µs |
-| P95 latency | 250.80 µs | 4.80 µs |
-| P99 latency | 465.80 µs | 8.90 µs |
+| Median latency | 167.85 Âµs | 2.50 Âµs |
+| P95 latency | 250.80 Âµs | 4.80 Âµs |
+| P99 latency | 465.80 Âµs | 8.90 Âµs |
 
 The recorded results show a substantial reduction in matching-engine submission latency for this specific workload.
 
 These figures are matching-engine microbenchmark results. They do not include the complete simulator-to-ring-buffer-to-matching-engine pipeline.
 
-## 4. Matching-Engine Repeated Runs — 12 October 2026
+## 4. Matching-Engine Repeated Runs â€” 12 October 2026
 
 Five local benchmark runs were recorded for the non-crossing order-submission workload.
 
-| Run | Median (µs) | P95 (µs) | P99 (µs) |
+| Run | Median (Âµs) | P95 (Âµs) | P99 (Âµs) |
 |---|---:|---:|---:|
 | 1 | 2.10 | 2.70 | 3.80 |
 | 2 | 2.40 | 4.50 | 38.10 |
@@ -63,7 +63,7 @@ The median latency remained low across these runs, while some runs showed higher
 
 The cause of the tail-latency variation has not been established. These local measurements should not be used to claim a guaranteed latency under production conditions.
 
-## 5. Matching-Engine Benchmark — 16 October 2026
+## 5. Matching-Engine Benchmark â€” 16 October 2026
 
 The benchmark used `benchmarks/benchmark_engine.py` with 1,000 submissions per scenario.
 
@@ -73,7 +73,7 @@ Order construction, scenario setup, and correctness checks were excluded from th
 
 The workload created 1,000 resting sell orders and then submitted 1,000 non-crossing buy orders.
 
-| Run | Median (µs) | P95 (µs) | P99 (µs) |
+| Run | Median (Âµs) | P95 (Âµs) | P99 (Âµs) |
 |---|---:|---:|---:|
 | 1 | 2.20 | 2.50 | 3.70 |
 | 2 | 2.30 | 2.50 | 3.90 |
@@ -83,7 +83,7 @@ The workload created 1,000 resting sell orders and then submitted 1,000 non-cros
 
 The workload created 1,000 resting sell orders and then submitted 1,000 crossing buy orders. Each crossing buy order was expected to produce one trade at the resting order's price.
 
-| Run | Median (µs) | P95 (µs) | P99 (µs) |
+| Run | Median (Âµs) | P95 (Âµs) | P99 (Âµs) |
 |---|---:|---:|---:|
 | 1 | 1.90 | 2.10 | 2.80 |
 | 2 | 3.00 | 4.60 | 20.10 |
@@ -95,14 +95,14 @@ These measurements provide an initial local baseline for non-crossing and crossi
 
 This benchmark does not measure Cython performance, shared-memory write-to-read latency, or full end-to-end pipeline latency.
 
-## 6. End-to-End Pipeline Benchmark — 20 October 2026
+## 6. End-to-End Pipeline Benchmark â€” 20 October 2026
 
 ### Benchmark setup
 
 - Script: `benchmarks/benchmark_e2e.py`
 - Workload: 1,000 synthetic market ticks
 - Ring-buffer capacity: 2,048
-- Pipeline: simulator → ring buffer → matching engine
+- Pipeline: simulator â†’ ring buffer â†’ matching engine
 - Recorded runs: 2
 
 ### Results
@@ -117,9 +117,9 @@ This benchmark does not measure Cython performance, shared-memory write-to-read 
 | Total elapsed time (s) | 0.075833 | 0.056258 |
 | Reported throughput (ticks/s) | 13,186.92 | 17,775.28 |
 | Write-to-read samples | 1,000 | 1,000 |
-| Median write-to-read latency (µs) | 133.50 | 133.25 |
-| P95 write-to-read latency (µs) | 160.50 | 154.20 |
-| P99 write-to-read latency (µs) | 190.00 | 216.00 |
+| Median write-to-read latency (Âµs) | 133.50 | 133.25 |
+| P95 write-to-read latency (Âµs) | 160.50 | 154.20 |
+| P99 write-to-read latency (Âµs) | 190.00 | 216.00 |
 
 ### Interpretation and limitations
 
@@ -129,14 +129,14 @@ Total elapsed time covers the benchmark's overall execution and includes setup a
 
 The workload uses synthetic market ticks rather than real exchange data. Two runs are useful as an initial observation but are insufficient to establish a stable performance baseline.
 
-## 7. End-to-End Pipeline Benchmark — 21 October 2026
+## 7. End-to-End Pipeline Benchmark â€” 21 October 2026
 
 ### Benchmark setup
 
 - Script: `benchmarks/benchmark_e2e.py`
 - Workload: 1,000 synthetic market ticks
 - Ring-buffer capacity: 2,048
-- Pipeline: simulator → ring buffer → matching engine
+- Pipeline: simulator â†’ ring buffer â†’ matching engine
 - Recorded runs: 1
 
 ### Results
@@ -151,9 +151,9 @@ The workload uses synthetic market ticks rather than real exchange data. Two run
 | Total elapsed time (s) | 0.085174 |
 | Reported throughput (ticks/s) | 11,740.71 |
 | Write-to-read samples | 1,000 |
-| Median write-to-read latency (µs) | 135.80 |
-| P95 write-to-read latency (µs) | 161.30 |
-| P99 write-to-read latency (µs) | 249.20 |
+| Median write-to-read latency (Âµs) | 135.80 |
+| P95 write-to-read latency (Âµs) | 161.30 |
+| P99 write-to-read latency (Âµs) | 249.20 |
 
 ### Interpretation and limitations
 
@@ -165,14 +165,14 @@ The total elapsed time and reported throughput describe overall benchmark execut
 
 This result represents a single run, so it should be treated as an observation rather than a stable performance baseline. The workload is synthetic and does not establish performance with real exchange traffic.
 
-## 8. End-to-End Pipeline Benchmark — 22 October 2026
+## 8. End-to-End Pipeline Benchmark â€” 22 October 2026
 
 ### Benchmark setup
 
 - Script: `benchmarks/benchmark_e2e.py`
 - Environment: Local Windows 10 development environment
 - Workload: Synthetic market ticks
-- Pipeline: Simulator → ring buffer → matching engine
+- Pipeline: Simulator â†’ ring buffer â†’ matching engine
 - Ring-buffer capacity: 2,048 (default configuration)
 - Recorded runs: Three runs with 1,000 ticks and one run with 10,000 ticks
 
@@ -188,19 +188,19 @@ This result represents a single run, so it should be treated as an observation r
 | Total elapsed time (s) | 0.765422 | 0.154750 | 0.133453 | 0.744490 |
 | Reported throughput (ticks/s) | 1,306.47 | 6,462.05 | 7,493.29 | 13,432.01 |
 | Write-to-read samples | 1,000 | 1,000 | 1,000 | 10,000 |
-| Median write-to-read latency (µs) | 133.90 | 134.40 | 134.35 | 134.30 |
-| P95 write-to-read latency (µs) | 171.10 | 182.00 | 199.80 | 163.40 |
-| P99 write-to-read latency (µs) | 202.30 | 362.20 | 285.50 | 250.20 |
+| Median write-to-read latency (Âµs) | 133.90 | 134.40 | 134.35 | 134.30 |
+| P95 write-to-read latency (Âµs) | 171.10 | 182.00 | 199.80 | 163.40 |
+| P99 write-to-read latency (Âµs) | 202.30 | 362.20 | 285.50 | 250.20 |
 
 ### Interpretation and limitations
 
 All four runs completed with successful writes and reads for every generated tick, zero failed writes, and the expected reported trade counts for their respective workloads.
 
-The median write-to-read latency remained close to 134 µs across all four runs. However, throughput varied substantially across the 1,000-tick runs, and P95/P99 latency also varied. These observations do not establish the cause of the variation or a stable performance baseline.
+The median write-to-read latency remained close to 134 Âµs across all four runs. However, throughput varied substantially across the 1,000-tick runs, and P95/P99 latency also varied. These observations do not establish the cause of the variation or a stable performance baseline.
 
-The 10,000-tick run reported 13,432.01 ticks/s, with median, P95, and P99 write-to-read latency of 134.30 µs, 163.40 µs, and 250.20 µs, respectively. A single larger run is not sufficient to establish reproducibility.
+The 10,000-tick run reported 13,432.01 ticks/s, with median, P95, and P99 write-to-read latency of 134.30 Âµs, 163.40 Âµs, and 250.20 Âµs, respectively. A single larger run is not sufficient to establish reproducibility.
 
-**Measurement boundary:** The reported latency percentiles measure ring-buffer write-to-read time. They do not measure the complete per-tick path through matching-engine processing. Total elapsed time includes pipeline setup and shutdown. These results therefore do not establish that the complete pipeline meets the 50 µs end-to-end latency target.
+**Measurement boundary:** The reported latency percentiles measure ring-buffer write-to-read time. They do not measure the complete per-tick path through matching-engine processing. Total elapsed time includes pipeline setup and shutdown. These results therefore do not establish that the complete pipeline meets the 50 Âµs end-to-end latency target.
 
 The workload uses synthetic ticks rather than real exchange data. These measurements are local development observations and should be retained separately from the historical runs above.
 
@@ -215,9 +215,9 @@ The workload uses synthetic ticks rather than real exchange data. These measurem
 
 | Date | Runs recorded | Median write-to-read latency | P95 write-to-read latency | P99 write-to-read latency |
 |---|---:|---|---|---|
-| 20 October 2026 | 2 | 133.50, 133.25 µs | 160.50, 154.20 µs | 190.00, 216.00 µs |
-| 21 October 2026 | 1 | 135.80 µs | 161.30 µs | 249.20 µs |
-| 22 October 2026 | 4 | 133.90, 134.40, 134.35, 134.30 µs | 171.10, 182.00, 199.80, 163.40 µs | 202.30, 362.20, 285.50, 250.20 µs |
+| 20 October 2026 | 2 | 133.50, 133.25 Âµs | 160.50, 154.20 Âµs | 190.00, 216.00 Âµs |
+| 21 October 2026 | 1 | 135.80 Âµs | 161.30 Âµs | 249.20 Âµs |
+| 22 October 2026 | 4 | 133.90, 134.40, 134.35, 134.30 Âµs | 171.10, 182.00, 199.80, 163.40 Âµs | 202.30, 362.20, 285.50, 250.20 Âµs |
 
 The values are listed in run order and represent ring-buffer write-to-read latency, not complete per-tick end-to-end latency. The available measurements do not establish a stable performance trend or explain the observed variation.
 
@@ -233,7 +233,7 @@ The current evidence has the following limitations:
 4. **No full end-to-end latency distribution:** The reported pipeline percentiles do not establish per-tick latency from simulator generation through matching-engine completion.
 5. **Local environment:** The recorded results reflect local benchmark conditions and may vary with system load and environment.
 6. **Tail-latency variation:** Some matching-engine runs have noticeably higher P95 or P99 values. The cause has not been established.
-7. **Performance target not proven:** These results do not establish that the complete pipeline meets a 50 µs end-to-end latency target.
+7. **Performance target not proven:** These results do not establish that the complete pipeline meets a 50 Âµs end-to-end latency target.
 
 ## 11. Recommended Next Steps
 
@@ -250,7 +250,7 @@ The recorded matching-engine microbenchmarks show low submission latency for the
 
 However, the available pipeline latency percentiles measure ring-buffer write-to-read time, not the complete simulator-to-matching-engine path. More repeated measurements and an explicitly defined end-to-end timing boundary are needed before making stronger performance claims.
 
-## 13. End-to-End Pipeline Benchmark — 25 October 2026: Repeated Runs
+## 13. End-to-End Pipeline Benchmark â€” 25 October 2026: Repeated Runs
 
 ### Benchmark setup
 
@@ -290,7 +290,7 @@ The consistent record and trade counts provide useful reproducibility evidence, 
 
 The workload uses synthetic ticks, not real exchange data. These results do not establish that the complete pipeline meets the 50 us end-to-end latency target.
 
-## 14. End-to-End Pipeline Benchmark — 26 October 2026: Three 1,000-Tick Runs
+## 14. End-to-End Pipeline Benchmark â€” 26 October 2026: Three 1,000-Tick Runs
 
 ### Benchmark setup
 
@@ -353,3 +353,51 @@ Total elapsed time includes pipeline setup and shutdown. It should not be interp
 - Continue distinguishing producer-start-to-consumer-read latency from matching-processing latency.
 - Record the exact benchmark configuration and environment for future comparisons.
 - Investigate throughput and tail-latency variation before making stronger performance claims.
+## 15. End-to-End Pipeline Benchmark — 27 October 2026: Matching-Completion Measurement
+
+### Benchmark setup
+
+- Script: `benchmarks/benchmark_e2e.py`
+- Environment: Local Windows development environment
+- Workload: 1,000 synthetic market ticks
+- Ring-buffer capacity: 2,048
+- Random seed: 7
+- Recorded runs in this section: 1
+- Full test suite after the code and test changes: 99 passed in 6.97 seconds
+
+### Pipeline results
+
+| Metric | Recorded result |
+|---|---:|
+| Generated ticks | 1,000 |
+| Successful writes | 1,000 |
+| Successful reads | 1,000 |
+| Failed writes | 0 |
+| Trades executed | 787 |
+| Total elapsed time (s) | 0.350222 |
+| Reported throughput (ticks/s) | 2,855.33 |
+
+### Latency measurements
+
+| Metric | Samples | Median (us) | P95 (us) | P99 (us) |
+|---|---:|---:|---:|---:|
+| Producer-start-to-consumer-read | 1,000 | 165.45 | 297.50 | 446.70 |
+| Matching-processing only | 1,000 | 8.40 | 24.80 | 50.00 |
+| Producer-start-to-matching-completion | 1,000 | 175.10 | 325.50 | 482.00 |
+
+### Measurement boundaries
+
+- **Producer-start-to-consumer-read:** Begins when the producer starts processing a yielded tick and ends when the consumer reads the record. Producer retries may contribute.
+- **Matching-processing only:** Measures execution time inside `process_record()` for each record.
+- **Producer-start-to-matching-completion:** Begins when the producer starts processing a yielded tick and ends when `process_record()` returns. It includes waiting for the consumer.
+- **Total elapsed time:** Includes pipeline setup and shutdown; it is not per-tick latency.
+
+### Interpretation and limitations
+
+The recorded run processed 1,000 synthetic ticks with 1,000 successful writes, 1,000 successful reads, zero failed writes, and 787 reported trades.
+
+Producer-start-to-matching-completion latency had a median of 175.10 us, P95 of 325.50 us, and P99 of 482.00 us. These measurements do not demonstrate that the complete pipeline meets the project's 50 us end-to-end latency target.
+
+Matching-processing-only P99 was 50.00 us in this run. This narrower measurement excludes consumer waiting and must not be used as evidence that complete end-to-end latency meets the target.
+
+This is one local development run using synthetic data. Additional repeated runs are needed to evaluate variability and establish a more stable baseline. The results are not production trading measurements.

@@ -33,18 +33,25 @@ async def run_benchmark(
     elapsed_ns = time.perf_counter_ns() - start_ns
     metrics = result.metrics
 
-    if metrics.successful_writes != count:
-        raise AssertionError(
-            f"Expected {count} writes, got {metrics.successful_writes}"
-        )
-    if metrics.successful_reads != count:
-        raise AssertionError(
-            f"Expected {count} reads, got {metrics.successful_reads}"
-        )
+    # Reconcile the expected number of records across the pipeline.
+    expected_counts = {
+        "generated ticks": metrics.generated_ticks,
+        "successful writes": metrics.successful_writes,
+        "successful reads": metrics.successful_reads,
+        "matching-processed records": metrics.matching_processed_records,
+    }
+
+    for metric_name, actual_count in expected_counts.items():
+        if actual_count != count:
+            raise AssertionError(
+                f"Expected {count} {metric_name}, got {actual_count}"
+            )
+
     if metrics.failed_writes:
         raise AssertionError(
             f"Benchmark had {metrics.failed_writes} failed writes"
         )
+
     if result.latency_sample_count != count:
         raise AssertionError(
             f"Expected {count} producer-to-read latency samples, "
@@ -62,6 +69,7 @@ async def run_benchmark(
             f"Expected {count} matching-processing latency samples, "
             f"got {matching_summary['count']}"
         )
+
     if completion_summary["count"] != count:
         raise AssertionError(
             f"Expected {count} matching-completion latency samples, "
@@ -73,9 +81,13 @@ async def run_benchmark(
 
     print("\nChronosMatch end-to-end pipeline benchmark")
     print("------------------------------------------")
-    print(f"Generated ticks:                      {count:,}")
+    print(f"Generated ticks:                      {metrics.generated_ticks:,}")
     print(f"Successful writes:                    {metrics.successful_writes:,}")
     print(f"Successful reads:                     {metrics.successful_reads:,}")
+    print(
+        f"Matching-processed records:           "
+        f"{metrics.matching_processed_records:,}"
+    )
     print(f"Failed writes:                        {metrics.failed_writes:,}")
     print(f"Trades executed:                      {len(result.trades):,}")
     print(f"Total elapsed time:                   {elapsed_seconds:.6f} s")

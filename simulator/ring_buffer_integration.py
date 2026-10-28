@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import asyncio
@@ -18,8 +17,10 @@ from simulator.market_simulator import Tick
 
 @dataclass
 class IntegrationMetrics:
+    generated_ticks: int = 0
     successful_writes: int = 0
     successful_reads: int = 0
+    matching_processed_records: int = 0
     full_buffer_events: int = 0
     retry_attempts: int = 0
     failed_writes: int = 0
@@ -59,6 +60,14 @@ async def transfer_ticks(
 ) -> IntegrationResult:
     """Transfer SIM ticks through an existing, initially empty ring buffer.
 
+    Each tick yielded by the input iterator increments generated_ticks.
+    Each successful ring-buffer write increments successful_writes.
+    Each record successfully read increments successful_reads.
+
+    matching_processed_records counts records for which process_record()
+    returns successfully when a matching engine is provided. A successfully
+    processed record does not necessarily produce a trade.
+
     Each tick receives one initial write attempt and at most max_retries
     additional attempts. Failed writes are counted and never reported as
     successful transfers.
@@ -77,19 +86,36 @@ async def transfer_ticks(
     initial tick-processing point until process_record() finishes. This
     includes time waiting for the consumer to read the record. Samples are
     recorded only when a matching engine is provided.
+
+    If pipeline processing raises an exception, this function propagates
+    the exception rather than returning a partial IntegrationResult.
     """
     if isinstance(max_retries, bool) or not isinstance(max_retries, int):
         raise TypeError("max_retries must be an integer")
+
     if max_retries < 0:
         raise ValueError("max_retries cannot be negative")
-    if not math.isfinite(retry_interval_ms) or retry_interval_ms < 0:
-        raise ValueError("retry_interval_ms must be finite and non-negative")
-    if not math.isfinite(poll_interval_ms) or poll_interval_ms <= 0:
-        raise ValueError("poll_interval_ms must be finite and positive")
+
+    if (
+        not math.isfinite(retry_interval_ms)
+        or retry_interval_ms < 0
+    ):
+        raise ValueError(
+            "retry_interval_ms must be finite and non-negative"
+        )
+
+    if (
+        not math.isfinite(poll_interval_ms)
+        or poll_interval_ms <= 0
+    ):
+        raise ValueError(
+            "poll_interval_ms must be finite and positive"
+        )
 
     metrics = IntegrationMetrics()
     result = IntegrationResult(metrics=metrics)
     producer_done = asyncio.Event()
+
     start_times: dict[int, int] = {}
     simulator_sequences: dict[int, int] = {}
     next_buffer_sequence = 0
@@ -102,16 +128,23 @@ async def transfer_ticks(
             if record is None:
                 if producer_done.is_set():
                     return
+
                 await asyncio.sleep(poll_interval_ms / 1000)
                 continue
 
             buffer_sequence = record["sequence"]
-            started_ns = start_times.pop(buffer_sequence, None)
+
+            started_ns = start_times.pop(
+                buffer_sequence, None
+            )
             simulator_sequence = simulator_sequences.pop(
                 buffer_sequence, None
             )
 
-            if started_ns is None or simulator_sequence is None:
+            if (
+                started_ns is None
+                or simulator_sequence is None
+            ):
                 raise RuntimeError(
                     "Unexpected ring-buffer record. "
                     "Use an empty buffer for each integration run."
@@ -132,9 +165,13 @@ async def transfer_ticks(
             if engine is not None:
                 matching_started_ns = time.perf_counter_ns()
 
+                # Count a record as processed only if process_record()
+                # completes successfully.
                 matching_trades = process_record(record, engine)
+
                 matching_completed_ns = time.perf_counter_ns()
 
+                metrics.matching_processed_records += 1
                 result.trades.extend(matching_trades)
 
                 matching_latency_ns = (
@@ -143,6 +180,7 @@ async def transfer_ticks(
                 result.matching_latency_monitor.record(
                     matching_latency_ns
                 )
+
                 result.matching_completion_latency_monitor.record(
                     matching_completed_ns - started_ns
                 )
@@ -153,6 +191,10 @@ async def transfer_ticks(
         nonlocal next_buffer_sequence
 
         async for tick in ticks:
+            # This counts ticks yielded by the source iterator,
+            # including ticks later rejected by validation.
+            metrics.generated_ticks += 1
+
             if consumer_task.done():
                 consumer_task.result()
 
@@ -176,9 +218,14 @@ async def transfer_ticks(
                 )
 
                 if written:
-                    start_times[next_buffer_sequence] = tick_started_ns
-                    simulator_sequences[next_buffer_sequence] = tick.sequence
+                    start_times[next_buffer_sequence] = (
+                        tick_started_ns
+                    )
+                    simulator_sequences[next_buffer_sequence] = (
+                        tick.sequence
+                    )
                     next_buffer_sequence += 1
+
                     metrics.successful_writes += 1
                     break
 
@@ -193,7 +240,10 @@ async def transfer_ticks(
 
                 retries_used += 1
                 metrics.retry_attempts += 1
-                await asyncio.sleep(retry_interval_ms / 1000)
+
+                await asyncio.sleep(
+                    retry_interval_ms / 1000
+                )
 
             await asyncio.sleep(0)
 

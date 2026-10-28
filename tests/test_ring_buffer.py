@@ -968,5 +968,15 @@ def test_read_rejects_record_with_sequence_mismatch(tmp_path):
         fields[0] = 99
         ring._map[offset:offset + _RECORD.size] = _RECORD.pack(*fields)
 
+        write_seq_before, read_seq_before = ring._counters()
+
         with pytest.raises(RuntimeError, match="sequence mismatch"):
             ring.read()
+
+        assert ring._counters() == (write_seq_before, read_seq_before)
+
+        # The corrupted record must not be silently consumed.
+        with pytest.raises(RuntimeError, match="sequence mismatch"):
+            ring.read()
+
+        assert ring._counters() == (write_seq_before, read_seq_before)

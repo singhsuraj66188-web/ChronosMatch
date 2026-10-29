@@ -944,3 +944,39 @@ def test_repeated_concurrent_producer_consumer_preserves_every_field(tmp_path):
                 process.join(timeout=2)
         results.close()
         results.join_thread()
+
+
+def test_read_rejects_record_with_sequence_mismatch(tmp_path):
+    from ipc.ring_buffer import _DATA_OFFSET, _RECORD
+
+    with RingBuffer(
+        tmp_path / "sequence-mismatch.bin",
+        capacity=4,
+        create=True,
+    ) as ring:
+        assert ring.write(
+            timestamp_ns=123,
+            price_ticks=2500,
+            quantity=3,
+            side=1,
+        )
+
+        offset = _DATA_OFFSET
+        fields = list(_RECORD.unpack(
+            ring._map[offset:offset + _RECORD.size]
+        ))
+        fields[0] = 99
+        ring._map[offset:offset + _RECORD.size] = _RECORD.pack(*fields)
+
+        write_seq_before, read_seq_before = ring._counters()
+
+        with pytest.raises(RuntimeError, match="sequence mismatch"):
+            ring.read()
+
+        assert ring._counters() == (write_seq_before, read_seq_before)
+
+        # The corrupted record must not be silently consumed.
+        with pytest.raises(RuntimeError, match="sequence mismatch"):
+            ring.read()
+
+        assert ring._counters() == (write_seq_before, read_seq_before)

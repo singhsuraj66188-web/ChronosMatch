@@ -562,7 +562,15 @@ def test_matching_latency_samples_match_processed_records(tmp_path):
                 engine=engine,
             )
 
+        # Explicitly reconcile the pipeline record counts.
+        assert result.metrics.generated_ticks == 3
+        assert result.metrics.successful_writes == 3
         assert result.metrics.successful_reads == 3
+        assert result.metrics.matching_processed_records == 3
+        assert result.metrics.failed_writes == 0
+
+        # Every successfully processed record has latency evidence.
+        assert result.latency_sample_count == 3
         assert result.matching_latency_monitor.summary()["count"] == 3
         assert (
             result.matching_completion_latency_monitor.summary()["count"]

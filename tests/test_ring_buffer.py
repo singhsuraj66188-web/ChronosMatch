@@ -1,3 +1,8 @@
+import errno
+import os
+import pytest
+import ipc.ring_buffer as ring_module
+from ipc.ring_buffer import RingBuffer
 import multiprocessing
 import threading
 import time
@@ -980,3 +985,41 @@ def test_read_rejects_record_with_sequence_mismatch(tmp_path):
             ring.read()
 
         assert ring._counters() == (write_seq_before, read_seq_before)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows msvcrt lock behavior")
+def test_windows_lock_retries_after_temporary_contention(tmp_path, monkeypatch):
+    path = str(tmp_path / "windows_retry_test.bin")
+
+    with RingBuffer(path, capacity=4, create=True) as ring:
+        original_locking = ring_module.msvcrt.locking
+        attempts = 0
+
+        def simulate_contention(fd, mode, nbytes):
+            nonlocal attempts
+            if mode == ring_module.msvcrt.LK_NBLCK and attempts == 0:
+                attempts += 1
+                raise OSError(errno.EACCES, "simulated temporary contention")
+            return original_locking(fd, mode, nbytes)
+
+        monkeypatch.setattr(ring_module.msvcrt, "locking", simulate_contention)
+
+        ring._lock()
+        try:
+            assert attempts == 1
+        finally:
+            ring._unlock()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows msvcrt lock behavior")
+def test_windows_lock_propagates_unexpected_oserror(tmp_path, monkeypatch):
+    path = str(tmp_path / "windows_error_test.bin")
+
+    with RingBuffer(path, capacity=4, create=True) as ring:
+        def fail_locking(fd, mode, nbytes):
+            raise OSError(errno.EIO, "simulated unexpected lock failure")
+
+        monkeypatch.setattr(ring_module.msvcrt, "locking", fail_locking)
+
+        with pytest.raises(OSError, match="simulated unexpected lock failure"):
+            ring._lock()

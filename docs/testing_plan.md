@@ -69,7 +69,7 @@ Existing tests cover:
 | IPC matching adapter | `tests/test_ipc_matching_integration.py` | Five tests were collected during the coverage review. | Review producer-consumer edge cases. |
 | End-to-end pipeline | `tests/test_end_to_end.py` | Verifies transferred records, expected trades, and final order-book state. | Check repeated-run determinism if required by the E2E plan. |
 
-### Day 9 Local Verification - October 18, 2026
+### Day 9 Local Verification — October 18, 2026
 
 - **Branch tested:** Local `main`
 - **Platform:** Windows (`win32`)
@@ -277,3 +277,28 @@ Run end-to-end tests:
 `python -m pytest tests/test_end_to_end.py -v`
 
 Capture the full-suite summary, execution time, Python version, pytest version, and tested commit for each new baseline. Do not reuse historical results as fresh verification.
+
+### Day 20 Local Verification - October 29, 2026
+
+- **Branch:** `docs/day19-testing-audit`
+- **Tested commit:** `20566149d7737a8740608f445d2b7eb3c82e762d`
+- **Platform:** Windows (`win32`)
+- **Python:** 3.14.8
+- **pytest:** 9.1.1
+- **Full-suite command:** `python -m pytest -v`
+- **Full-suite result:** 105 passed in 3.10 seconds.
+
+The full suite passed on the synchronized branch after merging the latest `origin/main`. This result is separate from the historical Day 19 baseline of 104 passed in 2.96 seconds on commit `3b0ccb0`.
+
+**Focused integration verification**
+
+- **Command:** `python -m pytest tests/test_simulator.py tests/test_ring_buffer_integration.py -v`
+- **Result:** 43 passed in 0.32 seconds.
+- **End-to-end command:** `python -m pytest tests/test_end_to_end.py -v`
+- **Result:** 1 test passed. The captured output does not include its final duration.
+
+These focused runs are separate from the full-suite run and must not be added to its test count.
+
+**Coverage and limitations:** The reviewed tests exercise matching-engine order and trade behavior, ring-buffer transfer and concurrency behavior, simulator integration, and failure/shutdown handling. They do not establish exhaustive concurrency coverage or prove that generated ticks, successful writes, successful reads, and matching-engine-processed records reconcile across every failure and shutdown path.
+
+**Latency and benchmark boundaries:** Producer-to-consumer-read latency, matching-processing-only latency, and producer-to-matching-completion latency are distinct measurements. Automated test results are not benchmark measurements. Benchmark claims must cite the relevant benchmark command, environment, workload, and recorded output.

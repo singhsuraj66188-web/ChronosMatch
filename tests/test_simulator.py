@@ -166,3 +166,34 @@ def test_generated_tick_timestamps_are_valid_and_ordered():
         for timestamp in timestamps
     )
     assert timestamps == sorted(timestamps)
+
+
+def test_simulator_ticks_round_trip_through_ring_buffer(tmp_path):
+    from ipc.ring_buffer import RingBuffer
+
+    ticks = collect_ticks(count=12, interval_ms=0, seed=42)
+    path = tmp_path / "simulator-ticks.bin"
+
+    with RingBuffer(path, capacity=len(ticks) + 1, create=True) as ring:
+        for tick in ticks:
+            assert ring.write(
+                timestamp_ns=tick.timestamp_ns,
+                price_ticks=tick.price_ticks,
+                quantity=tick.quantity,
+                side=tick.side,
+            )
+
+        records = []
+        while (record := ring.read()) is not None:
+            records.append(record)
+
+    assert len(records) == len(ticks)
+
+    for sequence, (tick, record) in enumerate(zip(ticks, records)):
+        assert record == {
+            "sequence": sequence,
+            "timestamp_ns": tick.timestamp_ns,
+            "price_ticks": tick.price_ticks,
+            "quantity": tick.quantity,
+            "side": tick.side,
+        }

@@ -302,3 +302,55 @@ These focused runs are separate from the full-suite run and must not be added to
 **Coverage and limitations:** The reviewed tests exercise matching-engine order and trade behavior, ring-buffer transfer and concurrency behavior, simulator integration, and failure/shutdown handling. They do not establish exhaustive concurrency coverage or prove that generated ticks, successful writes, successful reads, and matching-engine-processed records reconcile across every failure and shutdown path.
 
 **Latency and benchmark boundaries:** Producer-to-consumer-read latency, matching-processing-only latency, and producer-to-matching-completion latency are distinct measurements. Automated test results are not benchmark measurements. Benchmark claims must cite the relevant benchmark command, environment, workload, and recorded output.
+
+### Day 21 Local Verification — October 30, 2026
+
+- **Branch tested:** `docs/day19-testing-audit`
+- **Tested commit:** `4aa101b95c8b52694f5cd0b28cfd110240751f33`
+- **Platform:** Windows 11 (`Windows-11-10.0.26200-SP0`)
+- **Python:** 3.14.8
+- **pytest:** 9.1.1
+- **Command:** `python -m pytest -q`
+- **Result:** 107 passed in 3.82 seconds.
+- **Failures/skips:** None reported in the captured summary.
+
+This fresh full-suite run was performed after synchronizing with `origin/main`, including merged PRs #77 and #78. It is separate from the Day 20 baseline of 105 passed in 3.10 seconds.
+
+### Day 21 Integration and Coverage Review
+
+Source inspection identified existing integration tests covering:
+
+- Successful simulator-to-ring-buffer transfers and record ordering.
+- Retry success, retry exhaustion, and full-buffer behavior.
+- Simulator-to-matching-engine trade execution.
+- Consumer failure propagation and shutdown handling.
+- Draining accepted records after producer completion.
+- Matching-processing latency sample counts.
+- Matching behavior when no engine is configured.
+
+The integration implementation tracks generated ticks, successful writes, successful reads, matching-processed records, failed writes, retries, and trades. The end-to-end benchmark checks that the expected record counts and all three latency sample counts match the requested workload.
+
+These findings establish the presence of relevant tests and benchmark assertions. They do not establish exhaustive coverage of every possible failure, concurrency, or shutdown path.
+
+### Day 21 Latency Measurement Review
+
+The integration uses three separate latency monitors:
+
+- **Producer-start-to-consumer-read:** From the producer's tick-processing start to the consumer reading the corresponding record.
+- **Matching-processing-only:** Time spent inside `process_record()`.
+- **Producer-start-to-matching-completion:** From the producer's tick-processing start until matching processing completes.
+
+The benchmark validates the sample count for each measurement against the requested workload. The latency monitor uses a bounded rolling window of 10,000 samples by default, so its reported count represents retained samples.
+
+Keep these measurement boundaries distinct. Matching-processing-only latency must not be described as complete end-to-end latency.
+
+### Day 21 Benchmark and Dashboard Review
+
+The October 30 benchmark is documented separately in `docs/benchmark_results.md`. It records one local synthetic run with 1,000 generated ticks, 1,000 successful writes, 1,000 successful reads, 1,000 matching-processed records, zero failed writes, and 787 trades.
+
+Producer-start-to-matching-completion latency was 143.00 µs median, 241.80 µs P95, and 358.70 µs P99. Matching-processing-only P99 was 39.30 µs. The run does not demonstrate the project's 50 µs full-system target.
+
+The benchmark environment records Python 3.14.7; this is distinct from the Python 3.14.8 environment used for the Day 21 automated test run.
+
+No dedicated dashboard or demo implementation was identified during the repository structure and filename review. The README roadmap continues to list dashboard/demo completion as pending. This remains a project requirement for follow-up, not a completed feature.
+

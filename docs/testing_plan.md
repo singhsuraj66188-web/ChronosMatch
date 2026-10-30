@@ -1,4 +1,4 @@
-# ChronosMatch Testing Plan
+ï»¿# ChronosMatch Testing Plan
 
 ## 1. Purpose
 
@@ -248,7 +248,9 @@ The source review identified existing checks for simulator sequence and timestam
 
 ### Day 19 Local Verification â€” October 28, 2026
 
-- **Branch used for test run:** `docs/day19-testing-audit` (at the tested commit below). **PR/documentation branch:** `docs/day21-testing-audit`.
+- **Branch used for test run:** `docs/day19-testing-audit` (at the tested commit below).
+**Branch tested:** `docs/day19-testing-audit`
+ **PR/documentation branch:** `docs/day21-testing-audit`.
 - **Tested commit:** `3b0ccb0`
 - **Python:** 3.14.8
 - **pytest:** 9.1.1
@@ -303,7 +305,7 @@ These focused runs are separate from the full-suite run and must not be added to
 
 **Latency and benchmark boundaries:** Producer-to-consumer-read latency, matching-processing-only latency, and producer-to-matching-completion latency are distinct measurements. Automated test results are not benchmark measurements. Benchmark claims must cite the relevant benchmark command, environment, workload, and recorded output.
 
-### Day 21 Local Verification — October 30, 2026
+### Day 21 Local Verification ï¿½ October 30, 2026
 
 - **Branch used for test run:** `docs/day19-testing-audit` (at the tested commit below). **PR/documentation branch:** `docs/day21-testing-audit`.
 - **Tested commit:** `4aa101b95c8b52694f5cd0b28cfd110240751f33`
@@ -348,7 +350,7 @@ Keep these measurement boundaries distinct. Matching-processing-only latency mus
 
 The October 30 benchmark is documented separately in `docs/benchmark_results.md`. It records one local synthetic run with 1,000 generated ticks, 1,000 successful writes, 1,000 successful reads, 1,000 matching-processed records, zero failed writes, and 787 trades.
 
-Producer-start-to-matching-completion latency was 143.00 µs median, 241.80 µs P95, and 358.70 µs P99. Matching-processing-only P99 was 39.30 µs. The run does not demonstrate the project's 50 µs full-system target.
+Producer-start-to-matching-completion latency was 143.00 ï¿½s median, 241.80 ï¿½s P95, and 358.70 ï¿½s P99. Matching-processing-only P99 was 39.30 ï¿½s. The run does not demonstrate the project's 50 ï¿½s full-system target.
 
 The benchmark environment records Python 3.14.7; this is distinct from the Python 3.14.8 environment used for the Day 21 automated test run.
 

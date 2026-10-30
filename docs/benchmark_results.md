@@ -518,3 +518,57 @@ Producer-start-to-matching-completion latency had a median of 164.10 us, P95 of 
 Matching-processing-only P99 was 73.70 us in this run. This narrower measurement excludes consumer waiting and must not be treated as complete end-to-end latency.
 
 This is one local development run using synthetic data. Additional repeated runs are needed to evaluate variability and establish a more stable baseline. The results are not production trading measurements. Throughput includes pipeline setup and shutdown and must not be interpreted as per-tick latency.
+
+## 18. End-to-End Pipeline Benchmark - 30 October 2026: Single Run
+
+### Benchmark setup
+
+- Script: `benchmarks/benchmark_e2e.py`
+- Environment: Local Windows development environment, Python 3.14.7
+- Workload: 1,000 synthetic market ticks
+- Ring-buffer capacity: 2,048 (default configuration)
+- Recorded runs: 1
+
+### Pipeline results
+
+| Metric | Recorded result |
+|---|---:|
+| Generated ticks | 1,000 |
+| Successful writes | 1,000 |
+| Successful reads | 1,000 |
+| Matching-processed records | 1,000 |
+| Failed writes | 0 |
+| Trades executed | 787 |
+| Total elapsed time (s) | 0.102612 |
+| Throughput (ticks/s) | 9,745.49 |
+
+### Latency measurements
+
+| Measurement | Statistic (us) | Result |
+|---|---|---:|
+| Producer-start-to-consumer-read | Median | 137.20 |
+| Producer-start-to-consumer-read | P95 | 226.20 |
+| Producer-start-to-consumer-read | P99 | 313.80 |
+| Matching-processing only | Median | 4.90 |
+| Matching-processing only | P95 | 11.70 |
+| Matching-processing only | P99 | 39.30 |
+| Producer-start-to-matching-completion | Median | 143.00 |
+| Producer-start-to-matching-completion | P95 | 241.80 |
+| Producer-start-to-matching-completion | P99 | 358.70 |
+
+### Measurement boundaries
+
+- **Producer-start-to-consumer-read:** Begins when the producer starts processing a yielded tick and ends when the consumer reads the record. Producer retries may contribute.
+- **Matching-processing only:** Measures execution time inside `process_record()` for each record.
+- **Producer-start-to-matching-completion:** Begins when the producer starts processing a yielded tick and ends when `process_record()` returns. It includes waiting for the consumer.
+- **Total elapsed time:** Includes pipeline setup and shutdown; it is not per-tick latency.
+
+### Interpretation and limitations
+
+The recorded run processed 1,000 synthetic ticks, with 1,000 successful writes, 1,000 successful reads, and 1,000 matching-processed records. There were zero failed writes and 787 reported trades.
+
+Producer-start-to-matching-completion latency had a median of 143.00 us, P95 of 241.80 us, and P99 of 358.70 us. These measurements do not demonstrate that the complete pipeline meets the project's 50 us end-to-end latency target.
+
+Matching-processing-only P99 was 39.30 us in this run. This narrower measurement excludes consumer waiting and must not be treated as complete end-to-end latency.
+
+This is one local development run using synthetic data. Additional repeated runs are needed to evaluate variability and establish a more stable baseline. The results are not production trading measurements. Throughput includes pipeline setup and shutdown and must not be interpreted as per-tick latency.

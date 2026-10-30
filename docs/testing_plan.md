@@ -248,7 +248,7 @@ The source review identified existing checks for simulator sequence and timestam
 
 ### Day 19 Local Verification â€” October 28, 2026
 
-- **Branch tested:** `docs/day19-testing-audit`
+- **Branch used for test run:** `docs/day19-testing-audit` (at the tested commit below). **PR/documentation branch:** `docs/day21-testing-audit`.
 - **Tested commit:** `3b0ccb0`
 - **Python:** 3.14.8
 - **pytest:** 9.1.1
@@ -305,7 +305,7 @@ These focused runs are separate from the full-suite run and must not be added to
 
 ### Day 21 Local Verification — October 30, 2026
 
-- **Branch tested:** `docs/day19-testing-audit`
+- **Branch used for test run:** `docs/day19-testing-audit` (at the tested commit below). **PR/documentation branch:** `docs/day21-testing-audit`.
 - **Tested commit:** `4aa101b95c8b52694f5cd0b28cfd110240751f33`
 - **Platform:** Windows 11 (`Windows-11-10.0.26200-SP0`)
 - **Python:** 3.14.8

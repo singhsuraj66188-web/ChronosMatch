@@ -578,3 +578,67 @@ def test_matching_latency_samples_match_processed_records(tmp_path):
         )
 
     asyncio.run(run_test())
+
+@pytest.mark.parametrize(
+    ("field", "second_value"),
+    [
+        ("sequence", 0),
+        ("sequence", -1),
+        ("timestamp_ns", 100),
+        ("timestamp_ns", 99),
+    ],
+)
+def test_transfer_rejects_duplicate_or_decreasing_order(field, second_value):
+    class TrackingBuffer:
+        def __init__(self):
+            self.records = []
+            self.write_calls = 0
+
+        def write(self, **kwargs):
+            self.write_calls += 1
+            self.records.append(
+                {"sequence": len(self.records), **kwargs}
+            )
+            return True
+
+        def read(self):
+            if self.records:
+                return self.records.pop(0)
+            return None
+
+    async def run_test():
+        buffer = TrackingBuffer()
+
+        first_tick = Tick(
+            sequence=0,
+            timestamp_ns=100,
+            symbol="SIM",
+            price_ticks=10000,
+            quantity=1,
+            side=1,
+        )
+
+        second_tick = Tick(
+            sequence=(
+                second_value if field == "sequence" else 1
+            ),
+            timestamp_ns=(
+                second_value if field == "timestamp_ns" else 200
+            ),
+            symbol="SIM",
+            price_ticks=10100,
+            quantity=1,
+            side=2,
+        )
+
+        async def produce_ticks():
+            yield first_tick
+            yield second_tick
+
+        with pytest.raises(ValueError, match=field):
+            await transfer_ticks(produce_ticks(), buffer)
+
+        # The first tick is accepted; the invalid second tick is not written.
+        assert buffer.write_calls == 1
+
+    asyncio.run(run_test())

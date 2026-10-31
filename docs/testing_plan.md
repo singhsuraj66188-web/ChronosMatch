@@ -22,7 +22,7 @@ python -m pytest tests/test_ring_buffer.py tests/test_ring_buffer_integration.py
 
 ## 3. Existing Test Coverage
 
-The previously verified full-suite run on the `origin/main` baseline (`b865e4d`) completed on 20 October 2026 with 83 passed in 1.96 seconds on Windows using `python -m pytest -v`. Earlier results are retained below as historical evidence.
+The latest verified full-suite run was performed on the Day 22 documentation branch, based on `origin/main` commit `4fb5174`, on 31 October 2026. The run completed with 112 passed in 3.55 seconds using Python 3.14.8 and pytest 9.1.1 on Windows 11. Earlier results are retained below as historical evidence.
 
 ### Order Validation (`tests/test_orders.py`)
 
@@ -303,7 +303,7 @@ These focused runs are separate from the full-suite run and must not be added to
 
 **Latency and benchmark boundaries:** Producer-to-consumer-read latency, matching-processing-only latency, and producer-to-matching-completion latency are distinct measurements. Automated test results are not benchmark measurements. Benchmark claims must cite the relevant benchmark command, environment, workload, and recorded output.
 
-### Day 21 Local Verification — October 30, 2026
+### Day 21 Local Verification - October 30, 2026
 
 - **Branch used for test run:** `docs/day19-testing-audit` (at the tested commit below). **PR/documentation branch:** `docs/day21-testing-audit`.
 - **Tested commit:** `4aa101b95c8b52694f5cd0b28cfd110240751f33`
@@ -354,3 +354,34 @@ The benchmark environment records Python 3.14.7; this is distinct from the Pytho
 
 No dedicated dashboard or demo implementation was identified during the repository structure and filename review. The README roadmap continues to list dashboard/demo completion as pending. This remains a project requirement for follow-up, not a completed feature.
 
+### Day 22 Local Verification — October 31, 2026
+
+- **Branch:** `docs/day22-testing-audit`
+- **Tested commit:** `4fb5174` (latest `origin/main` baseline, including PR #82)
+- **Platform:** Windows 11 (`Windows-11-10.0.26200-SP0`)
+- **Python:** 3.14.8, 64-bit
+- **pytest:** 9.1.1
+- **Command:** `python -m pytest -q`
+- **Result:** 112 passed in 3.55 seconds.
+
+This was a fresh full-suite run before the Day 22 documentation changes. It verifies the test suite at commit `4fb5174`; it is not a test run performed after the documentation edits.
+
+### Day 22 Integration Coverage Review
+
+Source inspection and test collection identified the following existing coverage:
+
+- `tests/test_ring_buffer_integration.py`: 28 tests collected. Covers successful transfers, record ordering and values, full-buffer handling, retries, retry exhaustion, matching-engine trade creation, consumer failure and shutdown handling, latency sample counts, and record-count reconciliation.
+- `tests/test_ipc_matching_integration.py`: 5 tests collected. Covers record-to-order conversion, bid-book insertion, crossing orders and expected trade details, invalid sides, and missing fields.
+- `tests/test_end_to_end.py`: 1 test collected. Checks three simulator records, successful writes and reads, record values and ordering, two expected trades, and the final order-book state.
+
+PR #82 adds parametrized regression coverage for duplicate and decreasing simulator sequence numbers and timestamps. The test verifies that the invalid second tick is rejected before it is written to the buffer.
+
+The three reviewed files contain 34 collected tests in total. This is a focused collection count, not an additional count to add to the full-suite result.
+
+### Day 22 Coverage Limitations
+
+The end-to-end test transfers simulator ticks through the ring buffer and then processes the transferred records through the IPC adapter. It verifies the expected matching results, but it does not establish that matching-engine processing occurs concurrently inside `transfer_ticks`.
+
+Existing tests provide evidence for the listed error, retry, ordering, and shutdown scenarios. They do not establish exhaustive coverage of all concurrency, failure, or lifecycle cases. No duplicate tests were added during this review.
+
+Keep automated test results separate from benchmark measurements. Producer-start-to-consumer-read latency, matching-processing latency, and producer-start-to-matching-completion latency are distinct measurements.

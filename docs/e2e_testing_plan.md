@@ -30,23 +30,38 @@ The Day 17 full-suite result confirms that the suite passed on the tested commit
 
 ## Latest Test Results
 
-**Run date:** October 26, 2026
-**Branch:** `docs/day17-simulator-coverage`
-**Tested commit:** `2cccf7a`
-**Platform:** Windows 11
-**Python:** 3.14.8
+**Run date:** October 31, 2026
+**Branch:** `docs/day22-testing-audit`
+**Tested commit:** `4fb5174` (latest `origin/main` baseline)
+**Platform:** Windows 11 (`Windows-11-10.0.26200-SP0`)
+**Python:** 3.14.8, 64-bit
 **pytest:** 9.1.1
-**Command:** `python -m pytest -v`
+**Command:** `python -m pytest -q`
 
 | Metric | Result |
 |---|---|
-| Full test suite | 99 passed in 3.31 seconds |
-| Failed tests | Not separately confirmed from the available summary |
-| Skipped tests | Not separately confirmed from the available summary |
+| Full test suite | 112 passed in 3.55 seconds |
+| Failed tests | 0 reported in the passing summary |
+| Skipped tests | Not separately confirmed in the captured summary |
 
-This is the fresh local verification result recorded for the Day 17 review. The available summary confirms 99 passing tests; separate failed and skipped counts were not captured in the supplied output.
+This is the fresh local baseline recorded before Day 22 documentation changes. It is tied to commit `4fb5174`. The result does not represent a test run after the documentation edits.
 
-The full-suite result is tied to commit `2cccf7a` and the environment above. It supersedes the older result as the latest baseline recorded in this document.
+### Day 22 Focused Collection and Source Review
+
+| Test file | Tests collected | Verified coverage |
+|---|---:|---|
+| `tests/test_ring_buffer_integration.py` | 28 | Transfers, ordering, retries, trade creation, failure handling, shutdown and metric reconciliation |
+| `tests/test_ipc_matching_integration.py` | 5 | Record conversion, order-book insertion, crossing trades and invalid-record rejection |
+| `tests/test_end_to_end.py` | 1 | Simulator-to-ring-buffer transfer, record values, expected trades and final order-book state |
+| **Total** | **34** | Focused collection count only |
+
+PR #82 includes regression cases for duplicate and decreasing simulator sequence numbers and timestamps. The invalid second tick is checked to ensure it is not written.
+
+The end-to-end test processes transferred records through the IPC adapter after the transfer completes. It verifies the resulting trades and final order-book state, but does not establish concurrent matching-engine consumption inside `transfer_ticks`.
+
+These are source-review and collection findings. The 34 collected tests are already part of the full suite and must not be added to the 112 passing tests.
+
+Historical test results are retained below. Benchmark results remain documented separately in `docs/benchmark_results.md`.
 
 ### Historical Test Results
 

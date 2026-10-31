@@ -64,6 +64,9 @@ async def transfer_ticks(
     Each successful ring-buffer write increments successful_writes.
     Each record successfully read increments successful_reads.
 
+    Simulator sequence numbers and timestamps must be strictly increasing.
+    Invalid ordering is rejected before the tick is written to the buffer.
+
     matching_processed_records counts records for which process_record()
     returns successfully when a matching engine is provided. A successfully
     processed record does not necessarily produce a trade.
@@ -190,6 +193,9 @@ async def transfer_ticks(
     async def produce() -> None:
         nonlocal next_buffer_sequence
 
+        last_simulator_sequence: int | None = None
+        last_timestamp_ns: int | None = None
+
         async for tick in ticks:
             # This counts ticks yielded by the source iterator,
             # including ticks later rejected by validation.
@@ -201,6 +207,24 @@ async def transfer_ticks(
             if tick.symbol != "SIM":
                 raise ValueError(
                     "This initial integration supports only symbol SIM"
+                )
+
+            # Simulator sequence numbers must strictly increase.
+            if (
+                last_simulator_sequence is not None
+                and tick.sequence <= last_simulator_sequence
+            ):
+                raise ValueError(
+                    "Simulator sequence must be strictly increasing"
+                )
+
+            # Simulator timestamps must strictly increase.
+            if (
+                last_timestamp_ns is not None
+                and tick.timestamp_ns <= last_timestamp_ns
+            ):
+                raise ValueError(
+                    "timestamp_ns must be strictly increasing"
                 )
 
             tick_started_ns = time.perf_counter_ns()
@@ -227,6 +251,11 @@ async def transfer_ticks(
                     next_buffer_sequence += 1
 
                     metrics.successful_writes += 1
+
+                    # Update ordering baselines only after a successful write.
+                    last_simulator_sequence = tick.sequence
+                    last_timestamp_ns = tick.timestamp_ns
+
                     break
 
                 metrics.full_buffer_events += 1

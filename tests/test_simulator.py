@@ -107,6 +107,15 @@ def test_latency_monitor_nearest_rank_p95_and_p99():
     assert result["p99_us"] == 99.0
 
 
+@pytest.mark.parametrize(
+    "percentile",
+    [0, -1, 100.1, 101, float("nan"), float("inf"), float("-inf")],
+)
+def test_latency_monitor_rejects_invalid_percentile(percentile):
+    with pytest.raises(ValueError, match="percentile must be greater than 0"):
+        LatencyMonitor._percentile([1000, 2000, 3000], percentile)
+
+
 def test_latency_monitor_keeps_bounded_sample_window():
     monitor = LatencyMonitor(max_samples=3)
 
@@ -138,6 +147,7 @@ def test_latency_monitor_rejects_invalid_window_size(max_samples):
     with pytest.raises(ValueError):
         LatencyMonitor(max_samples=max_samples)
 
+
 def test_simulator_timestamp_uses_perf_counter_ns(monkeypatch):
     from types import SimpleNamespace
     import simulator.market_simulator as market_simulator
@@ -155,6 +165,8 @@ def test_simulator_timestamp_uses_perf_counter_ns(monkeypatch):
     ticks = collect_ticks(count=1)
 
     assert ticks[0].timestamp_ns == expected_timestamp
+
+
 def test_generated_tick_timestamps_are_valid_and_ordered():
     ticks = collect_ticks(count=20, seed=42)
 

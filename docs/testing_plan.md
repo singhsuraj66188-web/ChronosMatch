@@ -41,7 +41,7 @@ Existing tests cover:
 - Timestamp priority and order-ID tie-breaking.
 - Matching-engine behaviour exercised through integration and end-to-end tests.
 
-Standalone matching-engine coverage should continue to be reviewed for fully filled order removal and remaining quantities.
+Partial fills and remaining quantities are covered by matching-engine tests. Fully filled order removal and final active-order state are verified by the end-to-end test.
 
 ### Simulator and Latency Monitor (`tests/test_simulator.py`)
 
@@ -134,8 +134,6 @@ For each test run, record:
 Additional tests should be considered as the implementation evolves, including:
 
 - Order cancellation and removal of cancelled orders from the active book.
-- Partial fills and remaining quantities after matching.
-- Order-book state after completed trades.
 - Matching-engine behaviour for empty books and additional boundary cases.
 - Simulator behaviour for zero ticks and boundary values for valid intervals.
 - Latency percentile calculations for small sample sizes and rolling-window boundaries.
@@ -385,3 +383,78 @@ The end-to-end test transfers simulator ticks through the ring buffer and then p
 Existing tests provide evidence for the listed error, retry, ordering, and shutdown scenarios. They do not establish exhaustive coverage of all concurrency, failure, or lifecycle cases. No duplicate tests were added during this review.
 
 Keep automated test results separate from benchmark measurements. Producer-start-to-consumer-read latency, matching-processing latency, and producer-start-to-matching-completion latency are distinct measurements.
+
+### Day 23 Local Verification — November 1, 2026
+
+- **Branch:** `docs/day23-test-traceability`
+- **Tested commit:** `d6dd51d376ec9701a758f4a052d67f80aac48ddb`
+- **Platform:** Windows 11 (`Windows-11-10.0.26200-SP0`), AMD64
+- **Python:** 3.14.8
+- **pytest:** 9.1.1
+- **Collection command:** `python -m pytest --collect-only -q`
+- **Collection result:** 119 tests collected in 0.09 seconds.
+- **Full-suite command:** `python -m pytest -q`
+- **Full-suite result:** 119 passed in 3.30 seconds.
+- **Failed tests:** 0
+- **Skipped tests:** 0
+
+This fresh baseline was run on the synchronized `origin/main` commit before Day 23 documentation changes. It includes the merged mainline changes available at the tested commit. It is separate from the Day 22 result of 112 passed in 3.55 seconds.
+
+### Day 23 Requirement-to-Test Traceability
+
+| Requirement / behaviour | Test evidence | Status |
+|---|---|---|
+| Order ID, price, quantity and side validation | `tests/test_orders.py`, `tests/test_matching_engine.py` | Covered |
+| Crossing and non-crossing orders | `tests/test_matching_engine.py::test_buy_matches_resting_sell_at_resting_price`, `test_non_crossing_orders_do_not_trade`, `test_sell_matches_resting_buy_at_resting_price` | Covered |
+| Best-price and time priority | `tests/test_matching_engine.py::test_best_price_order_matches_first`, `test_same_price_orders_follow_timestamp_priority`, `test_same_price_and_timestamp_use_order_id_as_tiebreaker` | Covered |
+| Partial fills and remaining quantities | `tests/test_matching_engine.py::test_order_matches_multiple_resting_orders` and crossing-order tests | Covered |
+| Trade details and order IDs | `tests/test_matching_engine.py`, `tests/test_ipc_matching_integration.py::test_crossing_records_create_trade` | Covered |
+| Fully filled order removal and final active-order state | `tests/test_end_to_end.py::test_simulator_ring_buffer_matching_engine_end_to_end` | Covered |
+| IPC record-to-order conversion | `tests/test_ipc_matching_integration.py::test_buy_record_maps_to_matching_engine_order` | Covered |
+| Record insertion into the matching book | `tests/test_ipc_matching_integration.py::test_ring_buffer_record_enters_bid_book` | Covered |
+| Invalid sides and missing record fields | `tests/test_ipc_matching_integration.py::test_invalid_side_is_rejected`, `test_missing_record_field_is_rejected` | Covered |
+| Ring-buffer record roundtrip and field preservation | `tests/test_ring_buffer.py::test_write_and_read_record`, `tests/test_ring_buffer_integration.py::test_successful_transfers_preserve_values_and_order` | Covered |
+| Empty, full and wraparound buffer behaviour | `tests/test_ring_buffer.py::test_empty_buffer_returns_none`, `test_full_buffer_and_wraparound` | Covered |
+| Producer-consumer concurrency and record preservation | `tests/test_ring_buffer.py::test_ring_buffer_supports_concurrent_producer_and_consumer`, `test_repeated_concurrent_producer_consumer_preserves_every_field` | Covered |
+| Sequence mismatch and lock behaviour | `tests/test_ring_buffer.py::test_read_rejects_record_with_sequence_mismatch`, Windows lock retry and unexpected OS error tests | Covered |
+| Ring-buffer lifecycle and cleanup | `tests/test_ring_buffer.py` lifecycle and cleanup tests | Covered |
+| Deterministic simulator tick generation | `tests/test_simulator.py::test_simulator_is_reproducible_with_same_seed` | Covered |
+| Tick count, sequence and timestamp ordering | `tests/test_simulator.py::test_simulator_generates_requested_count`, `test_generated_tick_timestamps_are_valid_and_ordered` | Covered |
+| Invalid simulator inputs and interval boundaries | `tests/test_simulator.py` validation tests | Covered |
+| Successful simulator-to-buffer transfer and record preservation | `tests/test_simulator.py::test_simulator_ticks_round_trip_through_ring_buffer`, `tests/test_ring_buffer_integration.py::test_successful_transfers_preserve_values_and_order` | Covered |
+| Duplicate or decreasing sequence/timestamp rejection | `tests/test_ring_buffer_integration.py::test_transfer_rejects_duplicate_or_decreasing_order` | Covered |
+| Simulator records reaching the matching engine | `tests/test_ring_buffer_integration.py::test_simulator_ticks_reach_matching_engine_and_create_trade` | Covered |
+| Generated, written, read and matching-processed record counts | `tests/test_ring_buffer_integration.py::test_matching_latency_samples_match_processed_records` | Covered for the tested successful path |
+| Consumer failure, shutdown and draining behaviour | `tests/test_ring_buffer_integration.py` consumer failure/shutdown tests; `tests/test_remaining_gaps.py::test_consumer_finishes_when_producer_raises` | Covered for the tested scenarios |
+| Concurrent live simulator-to-matching-engine E2E processing | No dedicated test establishes independent concurrent production and matching consumption | Not covered by the dedicated E2E test |
+
+The matrix records the behaviour established by source inspection of the collected tests. A covered test does not imply exhaustive coverage of every possible input, failure, or concurrency condition.
+
+### Day 23 Coverage Limitations
+
+The dedicated end-to-end test, `test_simulator_ring_buffer_matching_engine_end_to_end`, transfers the deterministic records through the ring buffer and then processes the transferred records through the matching adapter. It verifies expected trades, record preservation, and final order-book state, including removal of the fully filled buy order.
+
+It does not establish that the matching engine consumes records concurrently while the simulator is producing them.
+
+The integration test `test_simulator_ticks_reach_matching_engine_and_create_trade` exercises matching through the transfer pipeline by supplying a matching engine. This provides additional integration evidence, but it should not be described as proof of an independently concurrent producer-consumer matching E2E scenario.
+
+The successful-path reconciliation test checks matching-processed record counts against the transfer metrics for its tested workload. Do not generalize this to every failure and shutdown path without checking the corresponding assertions.
+
+Windows-specific lock retry tests apply to the Windows environment used for this baseline. Their execution on other operating systems is not established by this run.
+
+No duplicate regression tests were added during this source review. A dedicated concurrent matching E2E test should be discussed with the project lead before extending integration behaviour.
+
+### Day 23 Reproducibility Record
+
+The following commands capture the environment, test collection and full-suite baseline:
+
+```powershell
+git rev-parse HEAD
+python --version
+python -m pytest --version
+python -c "import platform; print(platform.platform()); print(platform.system()); print(platform.machine())"
+python -m pytest --collect-only -q
+python -m pytest -q
+```
+
+Record the exact tested commit and environment with every new baseline. Keep focused collection counts separate from the full-suite count. Keep benchmark results in `docs/benchmark_results.md`; automated test results are not performance benchmark results.

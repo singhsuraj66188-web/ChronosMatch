@@ -30,21 +30,26 @@ The Day 17 full-suite result confirms that the suite passed on the tested commit
 
 ## Latest Test Results
 
-**Run date:** October 31, 2026
-**Branch:** `docs/day22-testing-audit`
-**Tested commit:** `4fb5174` (latest `origin/main` baseline)
-**Platform:** Windows 11 (`Windows-11-10.0.26200-SP0`)
-**Python:** 3.14.8, 64-bit
+**Run date:** November 1, 2026
+**Branch:** `docs/day23-test-traceability`
+**Tested commit:** `d6dd51d376ec9701a758f4a052d67f80aac48ddb`
+**Platform:** Windows 11 (`Windows-11-10.0.26200-SP0`), AMD64
+**Python:** 3.14.8
 **pytest:** 9.1.1
-**Command:** `python -m pytest -q`
+**Collection command:** `python -m pytest --collect-only -q`
+**Full-suite command:** `python -m pytest -q`
 
 | Metric | Result |
 |---|---|
-| Full test suite | 112 passed in 3.55 seconds |
-| Failed tests | 0 reported in the passing summary |
-| Skipped tests | Not separately confirmed in the captured summary |
+| Tests collected | 119 |
+| Full-suite result | 119 passed in 3.30 seconds |
+| Failed tests | 0 |
+| Skipped tests | 0 |
+| Collection duration | 0.09 seconds |
 
-This is the fresh local baseline recorded before Day 22 documentation changes. It is tied to commit `4fb5174`. The result does not represent a test run after the documentation edits.
+This is the fresh baseline from the synchronized `origin/main` commit before Day 23 documentation changes. It supersedes the Day 22 result as the latest recorded baseline. Historical results remain below for reference.
+
+The full-suite result does not establish exhaustive coverage of every concurrency, lifecycle, or failure scenario.
 
 ### Day 22 Focused Collection and Source Review
 
@@ -62,6 +67,47 @@ The end-to-end test processes transferred records through the IPC adapter after 
 These are source-review and collection findings. The 34 collected tests are already part of the full suite and must not be added to the 112 passing tests.
 
 Historical test results are retained below. Benchmark results remain documented separately in `docs/benchmark_results.md`.
+
+### Day 23 Integration Coverage and Traceability Review
+
+Source inspection of the current test files identified the following coverage:
+
+| Area | Test evidence | Status |
+|---|---|---|
+| Simulator generation and deterministic output | `tests/test_simulator.py` | Covered |
+| Timestamp and sequence ordering | `tests/test_simulator.py`, `tests/test_ring_buffer_integration.py` | Covered |
+| Ring-buffer record roundtrip and field preservation | `tests/test_ring_buffer.py`, `tests/test_ring_buffer_integration.py` | Covered |
+| Empty, full, wraparound and retry scenarios | `tests/test_ring_buffer.py`, `tests/test_ring_buffer_integration.py` | Covered |
+| Producer-consumer concurrency and record preservation | `tests/test_ring_buffer.py` | Covered for tested scenarios |
+| IPC record conversion and matching | `tests/test_ipc_matching_integration.py` | Covered |
+| Crossing trades and expected trade details | `tests/test_ipc_matching_integration.py`, `tests/test_matching_engine.py` | Covered |
+| Partial fills and remaining order quantities | `tests/test_matching_engine.py` | Covered |
+| Fully filled order removal and final book state | `tests/test_end_to_end.py::test_simulator_ring_buffer_matching_engine_end_to_end` | Covered |
+| Simulator-to-matching-engine transfer integration | `tests/test_ring_buffer_integration.py::test_simulator_ticks_reach_matching_engine_and_create_trade` | Covered |
+| Successful-path generated, written, read and matching-processed count reconciliation | `tests/test_ring_buffer_integration.py::test_matching_latency_samples_match_processed_records` | Covered for tested workload |
+| Consumer failure and shutdown behaviour | `tests/test_ring_buffer_integration.py`, `tests/test_remaining_gaps.py` | Covered for tested scenarios |
+
+### Day 23 End-to-End Scope and Limitations
+
+The dedicated test `test_simulator_ring_buffer_matching_engine_end_to_end` uses deterministic records and verifies successful writes and reads, preserved record values and ordering, expected trades, and final matching-engine state.
+
+The test completes `transfer_ticks` before processing the transferred records through the matching adapter. Therefore, it verifies a sequential end-to-end transfer-and-match flow, not concurrent matching-engine consumption while the simulator is producing records.
+
+The separate test `test_simulator_ticks_reach_matching_engine_and_create_trade` supplies a matching engine to the transfer pipeline and verifies trade creation. This is additional integration evidence, but it does not independently establish a concurrent producer and matching-consumer E2E execution.
+
+The successful-path reconciliation test checks matching-processed records against the transfer metrics for its tested workload. Do not extend that claim to all failure and shutdown paths without verifying their individual assertions.
+
+No duplicate tests were added during this review. A dedicated concurrent matching E2E test remains a possible follow-up, subject to coordination with the project lead.
+
+### Day 23 Measurement Boundaries
+
+Keep these measurements distinct:
+
+- **Producer-start-to-consumer-read latency:** Time from the producer's tick-processing start until the consumer reads the corresponding record.
+- **Matching-processing-only latency:** Time spent inside `process_record()`.
+- **Producer-start-to-matching-completion latency:** Time from the producer's tick-processing start until matching processing completes.
+
+Automated test results establish tested behaviour, not benchmark performance. Benchmark measurements remain documented separately in `docs/benchmark_results.md`.
 
 ### Historical Test Results
 

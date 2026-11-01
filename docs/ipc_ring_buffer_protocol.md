@@ -7,10 +7,13 @@ This document describes the current implementation in `ipc/ring_buffer.py` and r
 ## File layout
 
 The file begins with a one-byte locking region, followed by a 16-byte header and a fixed-capacity record array.
+Locking is platform-specific:
+- **Windows:** `msvcrt.locking()` locks the reserved byte at offset 0.
+- **POSIX/Linux:** `fcntl.flock()` locks the file, not just the reserved byte.
 
 | Region or field | Offset / size | Encoding and meaning |
 |---|---|---|
-| Locking region | Offset 0, 1 byte | Used by platform-specific file locking |
+| Locking region | Offset 0, 1 byte | Reserved byte used by Windows locking; POSIX/Linux locking applies to the file |
 | Write sequence counter | Offset 1, 8 bytes | Unsigned 64-bit integer, little-endian |
 | Read sequence counter | Offset 9, 8 bytes | Unsigned 64-bit integer, little-endian |
 | Record array | Offset 17 | Fixed-capacity array of 28-byte records |

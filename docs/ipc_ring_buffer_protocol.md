@@ -1,4 +1,4 @@
-﻿# IPC Ring Buffer Binary Protocol
+# IPC Ring Buffer Binary Protocol
 
 ## Status
 
@@ -64,3 +64,56 @@ The following details have been confirmed with Suraj:
 - **Compatibility:** changes to the binary layout require team agreement and a versioned protocol revision.
 
 The existing full/empty behavior and Windows/Linux locking implementation remain unchanged.
+
+## IPC Reliability Verification — Day 22
+
+The following records the historical verification performed on Day 22. These results are historical evidence, not the Day 23 test results.
+
+### Historical test results
+
+- Focused IPC tests:
+  `python -m pytest tests/test_ring_buffer.py tests/test_ring_buffer_integration.py -q`
+  **62 passed in 11.20s**
+- Full test suite:
+  `python -m pytest -q`
+  **112 passed in 7.73s**
+- `git diff --check`: clean.
+
+### Reliability coverage reviewed
+
+- Empty and full buffer behavior, record round-trip, and wraparound.
+- Record ordering and preservation of sequence, timestamp, price, quantity, and side.
+- Concurrent producer-consumer operations.
+- Same-instance and separate-instance concurrent writers.
+- Lock release after exceptions, unlock failures, and temporary Windows lock contention.
+- Reopening buffers while preserving records.
+- Close waiting for active operations, concurrent close, and cleanup retries.
+- Failed-write retry, retry exhaustion, and preservation of unread records.
+- Consumer shutdown draining pending records.
+- Consumer failure propagation and preservation of original processing errors during cleanup.
+- Simulator integration and duplicate or decreasing sequence/timestamp rejection.
+
+### Historical limitations
+
+- No reproducible IPC reliability defect was identified during the Day 22 review.
+- No implementation changes or additional regression tests were made.
+- Power-loss recovery, forced process termination, and prolonged production-scale stress were not established by those test runs.
+- Multi-symbol binary-record storage was not tested or introduced. The integration path uses `SIM` separately from the binary record.
+- Automated test results do not guarantee against all runtime or hardware failures.
+
+## IPC Reliability Verification — Day 23
+
+### Environment
+
+- Base commit: `964da23e675df7f06e9d478a021248eb2599bd90`
+- Platform: Windows 11, 64-bit AMD64
+- Python: 3.14.2
+
+### Fresh test results
+
+- Focused IPC tests:
+  `python -m pytest tests/test_ring_buffer.py tests/test_ring_buffer_integration.py -q`
+  **62 passed in 3.54s**
+- Full test suite:
+  `python -m pytest -q`
+  **112 passed in 3.64s**

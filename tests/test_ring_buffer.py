@@ -1023,3 +1023,96 @@ def test_windows_lock_propagates_unexpected_oserror(tmp_path, monkeypatch):
 
         with pytest.raises(OSError, match="simulated unexpected lock failure"):
             ring._lock()
+
+
+def test_repeated_wraparounds_preserve_sequence_and_payload(tmp_path):
+    capacity = 3
+    cycles = 5
+
+    with RingBuffer(
+        tmp_path / "repeated-wraparounds.bin",
+        capacity=capacity,
+        create=True,
+    ) as ring:
+        expected_sequence = 0
+
+        for cycle in range(cycles):
+            for offset in range(capacity):
+                value = cycle * capacity + offset
+                assert ring.write(
+                    timestamp_ns=value + 100,
+                    price_ticks=value + 200,
+                    quantity=value + 1,
+                    side=1 if value % 2 == 0 else 2,
+                )
+
+            assert ring._counters() == (
+                expected_sequence + capacity,
+                expected_sequence,
+            )
+
+            for offset in range(capacity):
+                value = cycle * capacity + offset
+                record = ring.read()
+
+                assert record == {
+                    "sequence": expected_sequence,
+                    "timestamp_ns": value + 100,
+                    "price_ticks": value + 200,
+                    "quantity": value + 1,
+                    "side": 1 if value % 2 == 0 else 2,
+                }
+                expected_sequence += 1
+
+            assert ring.read() is None
+
+        assert ring._counters() == (cycles * capacity, cycles * capacity)
+
+
+def test_failed_writes_do_not_advance_counters_or_modify_records(tmp_path):
+    with RingBuffer(
+        tmp_path / "failed-write-state.bin",
+        capacity=2,
+        create=True,
+    ) as ring:
+        assert ring.write(
+            timestamp_ns=10,
+            price_ticks=100,
+            quantity=1,
+            side=1,
+        )
+        assert ring.write(
+            timestamp_ns=20,
+            price_ticks=200,
+            quantity=2,
+            side=2,
+        )
+
+        counters_before = ring._counters()
+        assert counters_before == (2, 0)
+
+        for timestamp in (30, 40, 50):
+            assert not ring.write(
+                timestamp_ns=timestamp,
+                price_ticks=300,
+                quantity=3,
+                side=1,
+            )
+            assert ring._counters() == counters_before
+
+        assert ring.read() == {
+            "sequence": 0,
+            "timestamp_ns": 10,
+            "price_ticks": 100,
+            "quantity": 1,
+            "side": 1,
+        }
+        assert ring.read() == {
+            "sequence": 1,
+            "timestamp_ns": 20,
+            "price_ticks": 200,
+            "quantity": 2,
+            "side": 2,
+        }
+        assert ring._counters() == (2, 2)
+        assert ring.read() is None

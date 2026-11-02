@@ -642,3 +642,49 @@ def test_transfer_rejects_duplicate_or_decreasing_order(field, second_value):
         assert buffer.write_calls == 1
 
     asyncio.run(run_test())
+
+def test_sustained_small_buffer_pipeline_processes_every_tick(tmp_path):
+    async def run_test():
+        count = 5000
+        engine = MatchingEngine()
+        path = tmp_path / "sustained_pipeline.dat"
+
+        with RingBuffer(path, capacity=8, create=True) as ring:
+            result = await transfer_ticks(
+                generate_ticks(count=count, interval_ms=0, seed=7),
+                ring,
+                poll_interval_ms=0.1,
+                engine=engine,
+            )
+
+        metrics = result.metrics
+
+        # Every generated record must complete the entire pipeline.
+        assert metrics.generated_ticks == count
+        assert metrics.successful_writes == count
+        assert metrics.successful_reads == count
+        assert metrics.matching_processed_records == count
+        assert metrics.failed_writes == 0
+
+        # Verify that records retain their original order.
+        assert len(result.transferred_ticks) == count
+        assert [
+            record["simulator_sequence"]
+            for record in result.transferred_ticks
+        ] == list(range(count))
+
+        assert [
+            record["sequence"]
+            for record in result.transferred_ticks
+        ] == list(range(count))
+
+        # Every processed record must have all three latency measurements.
+        assert result.latency_sample_count == count
+        assert result.latency_monitor.summary()["count"] == count
+        assert result.matching_latency_monitor.summary()["count"] == count
+        assert (
+            result.matching_completion_latency_monitor.summary()["count"]
+            == count
+        )
+
+    asyncio.run(run_test())

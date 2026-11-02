@@ -22,7 +22,7 @@ python -m pytest tests/test_ring_buffer.py tests/test_ring_buffer_integration.py
 
 ## 3. Existing Test Coverage
 
-The latest verified full-suite run was performed on the Day 22 documentation branch, based on `origin/main` commit `4fb5174`, on 31 October 2026. The run completed with 112 passed in 3.55 seconds using Python 3.14.8 and pytest 9.1.1 on Windows 11. Earlier results are retained below as historical evidence.
+The latest verified full-suite baseline is the Day 24 run on commit `6bfdad084006fb40e1fe23b6fb42c2e8b2c4c0ad`. It completed with 121 passed in 2.65 seconds using Python 3.14.8 and pytest 9.1.1 on Windows 11. Earlier results are retained below as historical evidence.
 
 ### Order Validation (`tests/test_orders.py`)
 
@@ -63,7 +63,7 @@ Existing tests cover:
 | Area | Test file(s) | Evidence / status | Remaining gap |
 |---|---|---|---|
 | Order validation | `tests/test_orders.py`, `tests/test_matching_engine.py` | Order ID, price, quantity, and side validation are covered. | Review additional boundary cases if needed. |
-| Matching engine | `tests/test_matching_engine.py`, `tests/test_end_to_end.py` | Matching rules and end-to-end trade verification are covered. | Review standalone matching-engine coverage for fully filled order removal and remaining quantities. |
+| Matching engine | `tests/test_matching_engine.py`, `tests/test_end_to_end.py` | Partial fills and remaining quantities are covered by matching-engine tests. Fully filled order removal and final active-order state are verified by the end-to-end test. | Continue reviewing additional matching edge cases when requirements change. |
 | Simulator and latency monitor | `tests/test_simulator.py` | Tick generation, input validation, reproducibility, and latency calculations are documented as covered. | Review exact assertions before extending coverage. |
 | Ring buffer | `tests/test_ring_buffer.py`, `tests/test_ring_buffer_integration.py` | Existing tests cover buffer operations, wraparound, lifecycle handling, separate-process access, and concurrent producer-consumer behaviour. Avinash's Day 11 reliability report records 50 of 50 repeated runs passed, with 300 individual test passes. | Continue monitoring for intermittent concurrency failures; the recorded runs do not prove that every concurrency scenario is covered. |
 | IPC matching adapter | `tests/test_ipc_matching_integration.py` | Five tests were collected during the coverage review. | Review producer-consumer edge cases. |
@@ -458,3 +458,53 @@ python -m pytest -q
 ```
 
 Record the exact tested commit and environment with every new baseline. Keep focused collection counts separate from the full-suite count. Keep benchmark results in `docs/benchmark_results.md`; automated test results are not performance benchmark results.
+
+### Day 24 Local Verification - November 2, 2026
+
+- **Branch:** `docs/day24-testing-verification`
+- **Tested commit:** `6bfdad084006fb40e1fe23b6fb42c2e8b2c4c0ad`
+- **Base:** synchronized `origin/main`
+- **Platform:** Windows 11 (`Windows-11-10.0.26200-SP0`), AMD64
+- **Python:** 3.14.8
+- **pytest:** 9.1.1
+- **Interpreter:** `.venv` virtual environment
+
+| Verification | Collected | Passed | Duration |
+|---|---:|---:|---:|
+| Full-suite collection | 121 | — | 0.20 seconds |
+| Full suite | 121 | 121 | 2.65 seconds |
+| IPC, matching engine and orders | 27 | 27 | 0.10 seconds |
+| Simulator, ring buffer and ring-buffer integration | 91 | 91 | 3.19 seconds |
+| Dedicated end-to-end test | 1 | 1 | 0.04 seconds |
+
+- **Full-suite failures:** 0
+- **Full-suite skipped tests:** 0
+- **Focused-run failures:** 0
+
+The focused test groups overlap with the full suite. Their counts must not be added to the 121 full-suite passes.
+
+### Day 24 Verification Notes
+
+The focused IPC and matching-engine run verified 27 tests across `tests/test_ipc_matching_integration.py`, `tests/test_matching_engine.py`, and `tests/test_orders.py`.
+
+The simulator and ring-buffer run verified 91 tests across `tests/test_simulator.py`, `tests/test_ring_buffer.py`, and `tests/test_ring_buffer_integration.py`. This includes the new ring-buffer regression tests `test_repeated_wraparounds_preserve_sequence_and_payload` and `test_failed_writes_do_not_advance_counters_or_modify_records`.
+
+The dedicated end-to-end test `test_simulator_ring_buffer_matching_engine_end_to_end` passed. It remains a sequential transfer-and-process workflow: transfer completes before the matching adapter processes the records. The separate ring-buffer producer-consumer tests establish concurrency for their tested scenarios, but do not establish concurrent live matching-engine consumption during simulator production.
+
+A dedicated concurrent simulator-to-matching-engine E2E test remains an uncovered gap and should be discussed with the project lead before any implementation or test changes.
+
+### Day 24 Reproducibility Commands
+
+Run from the project root on the `docs/day24-testing-verification` branch:
+
+```powershell
+git rev-parse HEAD
+python --version
+python -m pytest --version
+python -c "import platform; print(platform.platform()); print(platform.system()); print(platform.machine())"
+python -m pytest --collect-only -q
+python -m pytest -q
+python -m pytest tests/test_ipc_matching_integration.py tests/test_matching_engine.py tests/test_orders.py -v
+python -m pytest tests/test_simulator.py tests/test_ring_buffer.py tests/test_ring_buffer_integration.py -v
+python -m pytest tests/test_end_to_end.py -v
+```

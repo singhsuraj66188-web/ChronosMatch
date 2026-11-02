@@ -30,26 +30,30 @@ The Day 17 full-suite result confirms that the suite passed on the tested commit
 
 ## Latest Test Results
 
-**Run date:** November 1, 2026
-**Branch:** `docs/day23-test-traceability`
-**Tested commit:** `d6dd51d376ec9701a758f4a052d67f80aac48ddb`
-**Platform:** Windows 11 (`Windows-11-10.0.26200-SP0`), AMD64
-**Python:** 3.14.8
-**pytest:** 9.1.1
-**Collection command:** `python -m pytest --collect-only -q`
-**Full-suite command:** `python -m pytest -q`
+**Day 24 verification -2 November 2026**
 
-| Metric | Result |
-|---|---|
-| Tests collected | 119 |
-| Full-suite result | 119 passed in 3.30 seconds |
-| Failed tests | 0 |
-| Skipped tests | 0 |
-| Collection duration | 0.09 seconds |
+- **Branch:** `docs/day24-testing-verification`
+- **Tested commit:** `6bfdad084006fb40e1fe23b6fb42c2e8b2c4c0ad`
+- **Platform:** Windows 11, AMD64
+- **Python:** 3.14.8
+- **pytest:** 9.1.1
 
-This is the fresh baseline from the synchronized `origin/main` commit before Day 23 documentation changes. It supersedes the Day 22 result as the latest recorded baseline. Historical results remain below for reference.
+| Verification | Collected | Passed | Duration |
+|---|---:|---:|---:|
+| Full-suite collection | 121 | — | 0.20 seconds |
+| Full suite | 121 | 121 | 2.65 seconds |
+| Dedicated end-to-end test | 1 | 1 | 0.04 seconds |
 
-The full-suite result does not establish exhaustive coverage of every concurrency, lifecycle, or failure scenario.
+- **Full-suite failures:** 0
+- **Full-suite skipped tests:** 0
+
+The dedicated test `test_simulator_ring_buffer_matching_engine_end_to_end` passed. It verifies a sequential transfer-and-process workflow: simulator records are transferred before the matching adapter processes them.
+
+The separate ring-buffer producer-consumer tests cover concurrency in their tested scenarios. They do not establish concurrent live matching-engine consumption while the simulator is producing records.
+
+**Coverage limitation:** A concurrent simulator-to-matching-engine end-to-end workflow remains unverified. This should be discussed with the project lead before adding or changing tests.
+
+The focused test count overlaps with the full suite and must not be added to the 121 full-suite passes.
 
 ### Day 22 Focused Collection and Source Review
 

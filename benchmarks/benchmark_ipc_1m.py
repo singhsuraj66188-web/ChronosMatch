@@ -25,6 +25,38 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 CHILD_TIMEOUT_SECONDS = 300
 PARENT_TIMEOUT_SECONDS = 310
 
+def validate_record(record, expected_sequence, previous_timestamp_ns, now_ns):
+    """Return independent payload validation errors for one record."""
+    sequence = record["sequence"]
+    timestamp_ns = record["timestamp_ns"]
+    price_ticks = record["price_ticks"]
+    quantity = record["quantity"]
+    side = record["side"]
+
+    return {
+        "sequence": (
+            type(sequence) is not int
+            or sequence != expected_sequence
+        ),
+        "timestamp": (
+            type(timestamp_ns) is not int
+            or timestamp_ns < 0
+            or timestamp_ns > now_ns
+            or (
+                previous_timestamp_ns is not None
+                and timestamp_ns < previous_timestamp_ns
+            )
+        ),
+        "price_ticks": (
+            type(price_ticks) is not int
+            or price_ticks != expected_sequence + 1
+        ),
+        "quantity": type(quantity) is not int or quantity != 1,
+        "side": type(side) is not int or side != 1,
+    }
+
+
+
 
 def producer(path, capacity, count, results):
     from ipc.ring_buffer import RingBuffer
@@ -60,7 +92,14 @@ def consumer(path, capacity, count, results):
 
     try:
         latencies = array("q")
-        out_of_order = 0
+        payload_errors = {
+            "sequence": 0,
+            "timestamp": 0,
+            "price_ticks": 0,
+            "quantity": 0,
+            "side": 0,
+        }
+        previous_timestamp_ns = None
         received = 0
         first_ns = None
         last_ns = None
@@ -83,39 +122,72 @@ def consumer(path, capacity, count, results):
 
                 last_ns = now
 
-                if (
-                    record["sequence"] != received
-                    or record["price_ticks"] != received + 1
-                ):
-                    out_of_order += 1
+                errors = validate_record(
+                    record,
+                    received,
+                    previous_timestamp_ns,
+                    now,
+                )
 
-                latencies.append(now - record["timestamp_ns"])
+                for field, has_error in errors.items():
+                    if has_error:
+                        payload_errors[field] += 1
+
+                timestamp_ns = record["timestamp_ns"]
+                if not errors["timestamp"]:
+                    previous_timestamp_ns = timestamp_ns
+                    latencies.append(now - timestamp_ns)
+
                 received += 1
 
         ordered = sorted(latencies)
         n = len(ordered)
 
-        p50_index = min(n - 1, n // 2)
-        p99_index = min(n - 1, max(0, int(n * 0.99) - 1))
+        p50_us = (
+            ordered[min(n - 1, n // 2)] / 1000 if n else 0.0
+        )
+        p99_us = (
+            ordered[min(n - 1, max(0, int(n * 0.99) - 1))] / 1000
+            if n else 0.0
+        )
+        max_us = ordered[-1] / 1000 if n else 0.0
 
         consumer_interval = (
-            (last_ns - first_ns) / 1e9 if n > 1 else 0.0
+            (last_ns - first_ns) / 1e9 if received > 1 else 0.0
         )
 
         stats = {
             "received": received,
             "missing": max(0, count - received),
-            "out_of_order": out_of_order,
+            "out_of_order": payload_errors["sequence"],
+            "payload_errors": payload_errors,
             "consumer_interval_seconds": consumer_interval,
-            "p50_us": ordered[p50_index] / 1000,
-            "p99_us": ordered[p99_index] / 1000,
-            "max_us": ordered[-1] / 1000,
+            "latency_samples": n,
+            "p50_us": p50_us,
+            "p99_us": p99_us,
+            "max_us": max_us,
         }
 
         results.put(("consumer", "ok", stats))
 
     except Exception as exc:
         results.put(("consumer", "error", repr(exc)))
+
+
+def benchmark_result(args_orders, written, stats, failed=False):
+    """Return PASS only when every benchmark and payload check succeeds."""
+    ok = (
+        not failed
+        and written == args_orders
+        and stats["received"] == args_orders
+        and stats["missing"] == 0
+        and stats["out_of_order"] == 0
+        and all(
+            errors == 0
+            for errors in stats["payload_errors"].values()
+        )
+    )
+    return "PASS" if ok else "FAIL"
 
 
 def main():
@@ -249,6 +321,9 @@ def main():
     print(f"orders received      : {received:,}")
     print(f"missing orders       : {missing:,}")
     print(f"out of order         : {out_of_order:,}")
+    print("payload validation errors:")
+    for field, errors in stats["payload_errors"].items():
+        print(f"  {field:20}: {errors:,}")
     print(f"total wall time      : {total_seconds:.2f} s")
     print(f"consumer drain time  : {stats['consumer_interval_seconds']:.2f} s")
     print(f"overall throughput   : {throughput:,.0f} orders/s")
@@ -259,16 +334,10 @@ def main():
     print(f"latency max          : {stats['max_us']:.1f} us")
     print("===========================================")
 
-    ok = (
-        not failed
-        and written == args.orders
-        and received == args.orders
-        and missing == 0
-        and out_of_order == 0
-    )
+    result = benchmark_result(args.orders, written, stats, failed)
 
-    print("RESULT:", "PASS" if ok else "FAIL")
-    sys.exit(0 if ok else 1)
+    print("RESULT:", result)
+    sys.exit(0 if result == "PASS" else 1)
 
 
 if __name__ == "__main__":

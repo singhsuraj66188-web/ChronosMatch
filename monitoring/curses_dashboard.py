@@ -1,20 +1,7 @@
 """Live terminal dashboard: top of book, spread, latency, and a whale alert.
 
-Run a demo with synthetic data:
-
-    python monitoring/curses_dashboard.py --demo
-
-Use it with the real engine by passing a function that returns a snapshot:
-
-    snapshot = {
-        "bids": [(price_ticks, qty), ...],      # best (highest) first
-        "asks": [(price_ticks, qty), ...],      # best (lowest) first
-        "latency": {"median_us": 12.0, "p99_us": 40.0, "max_us": 90.0, "count": 1000},
-        "trades_per_s": 45000.0,
-        "last_trade": {"price_ticks": 10150, "quantity": 800, "levels_cleared": 4},
-    }
-
-Windows needs:  pip install windows-curses
+Every non-None last_trade must include a stable trade_id (or sequence), so
+repeated snapshots of the same trade do not retrigger alerts.
 """
 from __future__ import annotations
 
@@ -24,7 +11,7 @@ import time
 
 try:
     import curses
-except ImportError:  # Windows without windows-curses
+except ImportError:
     curses = None
 
 DEPTH = 8
@@ -35,7 +22,7 @@ WHALE_SHOW_SECONDS = 3.0
 
 def detect_whale(trade: dict | None, qty_threshold: int = WHALE_QTY,
                  levels_threshold: int = WHALE_LEVELS) -> bool:
-    """A 'whale' order is large, or it cleared several price levels."""
+    """A whale is a large trade, a multi-level sweep, or both."""
     if not trade:
         return False
     return (
@@ -44,11 +31,47 @@ def detect_whale(trade: dict | None, qty_threshold: int = WHALE_QTY,
     )
 
 
-def render_lines(snapshot: dict, width: int = 80, whale_active: bool = False):
-    """Return [(text, style)] lines. Pure function, so it is easy to test.
+def _trade_identity(trade: dict | None):
+    """Return the stable identity required to recognize a newly observed trade."""
+    if trade is None:
+        return None
+    identity = trade.get("trade_id", trade.get("sequence"))
+    if identity is None:
+        raise ValueError("last_trade must include a stable trade_id or sequence")
+    return identity
 
-    Styles: title, header, bid, ask, spread, latency, whale, dim.
-    """
+
+class WhaleAlertTracker:
+    """Track stable trade IDs rather than snapshot-dictionary object identity."""
+
+    def __init__(self) -> None:
+        self._last_trade_id = None
+
+    def observe(self, trade: dict | None) -> bool:
+        trade_id = _trade_identity(trade)
+        is_new = trade_id is not None and trade_id != self._last_trade_id
+        self._last_trade_id = trade_id
+        return bool(is_new and detect_whale(trade))
+
+
+def whale_alert_message(trade: dict | None) -> str:
+    """Describe the actual condition that caused a whale alert."""
+    if trade is None:
+        return "*** WHALE ORDER ***"
+    large = trade.get("quantity", 0) >= WHALE_QTY
+    sweep = trade.get("levels_cleared", 0) >= WHALE_LEVELS
+    if large and sweep:
+        reason = "large quantity + multi-level sweep"
+    elif large:
+        reason = "large quantity"
+    else:
+        reason = "multi-level sweep"
+    return f"*** WHALE ORDER: {reason} ***"
+
+
+def render_lines(snapshot: dict, width: int = 80, whale_active: bool = False,
+                 whale_message: str | None = None):
+    """Return [(text, style)] lines. Pure function, so it is easy to test."""
     bids = list(snapshot.get("bids") or [])
     asks = list(snapshot.get("asks") or [])
     lat = snapshot.get("latency") or {}
@@ -68,7 +91,6 @@ def render_lines(snapshot: dict, width: int = 80, whale_active: bool = False):
     for i in range(DEPTH):
         b = f"{bids[i][1]:>10} {bids[i][0]:>10}" if i < len(bids) else " " * 21
         a = f"{asks[i][0]:<10} {asks[i][1]:<10}" if i < len(asks) else ""
-        # bid text and ask text are styled separately by the caller via two styles
         lines.append((f"{b}  |  {a}", "book"))
 
     lines.append(("", "dim"))
@@ -95,7 +117,7 @@ def render_lines(snapshot: dict, width: int = 80, whale_active: bool = False):
             )
         )
     if whale_active:
-        lines.append(("*** WHALE ORDER: multiple price levels cleared ***", "whale"))
+        lines.append((whale_message or whale_alert_message(trade), "whale"))
 
     return [(text[: max(width - 1, 0)], style) for text, style in lines]
 
@@ -124,22 +146,27 @@ def run(snapshot_fn, refresh: float = 0.1) -> None:
             styles["whale"] = curses.color_pair(4) | curses.A_BOLD
 
         whale_until = 0.0
-        last_seen_trade = None
+        active_whale_message = None
+        tracker = WhaleAlertTracker()
         while True:
             if stdscr.getch() in (ord("q"), ord("Q")):
                 return
             snap = snapshot_fn()
             trade = snap.get("last_trade")
-            if trade is not last_seen_trade and detect_whale(trade):
+            if tracker.observe(trade):
+                active_whale_message = whale_alert_message(trade)
                 whale_until = time.monotonic() + WHALE_SHOW_SECONDS
-            last_seen_trade = trade
 
             height, width = stdscr.getmaxyx()
             stdscr.erase()
-            lines = render_lines(snap, width, whale_active=time.monotonic() < whale_until)
-            for row, (text, style) in enumerate(lines[: max(height - 1, 0)]):
+            whale_active = time.monotonic() < whale_until
+            lines = render_lines(
+                snap, width, whale_active=whale_active,
+                whale_message=active_whale_message,
+            )
+            for row, (line, style) in enumerate(lines[: max(height - 1, 0)]):
                 try:
-                    stdscr.addstr(row, 0, text, styles.get(style, curses.A_NORMAL))
+                    stdscr.addstr(row, 0, line, styles.get(style, curses.A_NORMAL))
                 except curses.error:
                     pass
             stdscr.refresh()
@@ -153,7 +180,7 @@ def run(snapshot_fn, refresh: float = 0.1) -> None:
 
 def _demo_snapshot_factory():
     mid = 10_000
-    state = {"mid": mid, "n": 0, "last": None}
+    state = {"mid": mid, "n": 0, "last": None, "trade_id": 0}
 
     def snapshot() -> dict:
         state["n"] += 1
@@ -161,10 +188,14 @@ def _demo_snapshot_factory():
         mid_ = state["mid"]
         bids = [(mid_ - 1 - i, random.randint(5, 200)) for i in range(DEPTH)]
         asks = [(mid_ + 1 + i, random.randint(5, 200)) for i in range(DEPTH)]
-        if state["n"] % 50 == 0:  # an occasional whale
-            state["last"] = {"price_ticks": mid_ + 4, "quantity": 900, "levels_cleared": 4}
+        if state["n"] % 50 == 0:
+            state["trade_id"] += 1
+            state["last"] = {"trade_id": state["trade_id"], "price_ticks": mid_ + 4,
+                             "quantity": 900, "levels_cleared": 4}
         elif state["n"] % 7 == 0:
-            state["last"] = {"price_ticks": mid_, "quantity": random.randint(1, 60), "levels_cleared": 1}
+            state["trade_id"] += 1
+            state["last"] = {"trade_id": state["trade_id"], "price_ticks": mid_,
+                             "quantity": random.randint(1, 60), "levels_cleared": 1}
         return {
             "bids": bids,
             "asks": asks,

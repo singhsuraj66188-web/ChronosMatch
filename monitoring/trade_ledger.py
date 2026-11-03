@@ -1,12 +1,12 @@
 """Asynchronous SQLite ledger for matched trades (Week 4: Resiliency).
 
-The matching path only calls ``record()``, which puts a tuple on a queue.
+The matching path only calls record(), which puts a tuple on a queue.
 A background thread batches rows and writes them to SQLite, so disk I/O
-never blocks matching.
+never blocks.
 
     with TradeLedger("trades.db") as ledger:
         ledger.record(price_ticks=10150, quantity=25, buy_order_id=7, sell_order_id=3)
-        ledger.flush()              # optional: wait until everything is on disk
+        ledger.flush()
     print(TradeLedger.count("trades.db"))
 """
 from __future__ import annotations
@@ -57,8 +57,10 @@ class TradeLedger:
         self._written = 0
         self._error: BaseException | None = None
         self._closed = False
+        self._stop_sent = False
+        # Serialize public queue operations with worker-failure publication.
+        self._state_lock = threading.Lock()
 
-        # Create the schema here so problems show up immediately.
         conn = sqlite3.connect(self._path)
         try:
             conn.execute("PRAGMA journal_mode=WAL")
@@ -70,7 +72,6 @@ class TradeLedger:
         self._thread = threading.Thread(target=self._run, name="trade-ledger", daemon=True)
         self._thread.start()
 
-    # ---- public API -------------------------------------------------
     @property
     def written(self) -> int:
         """Rows committed to disk so far."""
@@ -84,33 +85,54 @@ class TradeLedger:
         sell_order_id: int | None = None,
         ts_ns: int | None = None,
     ) -> None:
-        if self._closed:
-            raise RuntimeError("ledger is closed")
-        if self._error is not None:
-            raise RuntimeError(f"ledger writer failed: {self._error!r}")
         _require_positive_int("price_ticks", price_ticks)
         _require_positive_int("quantity", quantity)
         if ts_ns is None:
             ts_ns = time.time_ns()
-        self._queue.put((ts_ns, buy_order_id, sell_order_id, price_ticks, quantity))
+        with self._state_lock:
+            if self._closed:
+                raise RuntimeError("ledger is closed")
+            if self._error is not None:
+                raise RuntimeError(f"ledger writer failed: {self._error!r}")
+            self._queue.put((ts_ns, buy_order_id, sell_order_id, price_ticks, quantity))
 
     def flush(self, timeout: float = 30.0) -> None:
         """Block until every trade recorded so far is committed."""
         marker = _Flush()
-        self._queue.put(marker)
+        with self._state_lock:
+            if self._closed:
+                raise RuntimeError("ledger is closed")
+            if self._error is not None:
+                raise RuntimeError(f"ledger writer failed: {self._error!r}")
+            self._queue.put(marker)
+
         if not marker.done.wait(timeout):
+            with self._state_lock:
+                error = self._error
+            if error is not None:
+                raise RuntimeError(f"ledger writer failed: {error!r}") from error
             raise TimeoutError("ledger flush timed out")
-        if self._error is not None:
-            raise RuntimeError(f"ledger writer failed: {self._error!r}")
+
+        with self._state_lock:
+            error = self._error
+        if error is not None:
+            raise RuntimeError(f"ledger writer failed: {error!r}") from error
 
     def close(self) -> None:
-        if self._closed:
-            return
-        self._closed = True
-        self._queue.put(_STOP)
+        with self._state_lock:
+            self._closed = True
+            if not self._stop_sent and self._error is None:
+                self._queue.put(_STOP)
+                self._stop_sent = True
+
         self._thread.join(timeout=30)
-        if self._error is not None:
-            raise RuntimeError(f"ledger writer failed: {self._error!r}")
+        if self._thread.is_alive():
+            raise TimeoutError("ledger writer thread did not stop within 30 seconds")
+
+        with self._state_lock:
+            error = self._error
+        if error is not None:
+            raise RuntimeError(f"ledger writer failed: {error!r}") from error
 
     def __enter__(self) -> "TradeLedger":
         return self
@@ -126,7 +148,6 @@ class TradeLedger:
         finally:
             conn.close()
 
-    # ---- writer thread ----------------------------------------------
     def _commit(self, conn: sqlite3.Connection, batch: list) -> None:
         if not batch:
             return
@@ -135,6 +156,7 @@ class TradeLedger:
         self._written += len(batch)
 
     def _run(self) -> None:
+        current_item = None
         try:
             conn = sqlite3.connect(self._path)
             conn.execute("PRAGMA synchronous=NORMAL")
@@ -145,12 +167,14 @@ class TradeLedger:
                     item = self._queue.get(timeout=self._flush_interval)
                 except queue.Empty:
                     item = None
+                current_item = item
 
                 if isinstance(item, _Flush):
                     self._commit(conn, batch)
                     batch = []
                     last_commit = time.monotonic()
                     item.done.set()
+                    current_item = None
                     continue
 
                 stop = item is _STOP
@@ -164,6 +188,17 @@ class TradeLedger:
                     last_commit = time.monotonic()
                 if stop:
                     break
+                current_item = None
             conn.close()
-        except BaseException as exc:  # surfaced via flush()/close()/record()
-            self._error = exc
+        except BaseException as exc:
+            with self._state_lock:
+                self._error = exc
+            if isinstance(current_item, _Flush):
+                current_item.done.set()
+            while True:
+                try:
+                    pending = self._queue.get_nowait()
+                except queue.Empty:
+                    break
+                if isinstance(pending, _Flush):
+                    pending.done.set()

@@ -78,6 +78,7 @@ def test_latency_monitor_summary():
 
     assert result["count"] == 3
     assert result["median_us"] == 2.0
+    assert result["max_us"] == 3.0
 
 
 def test_empty_latency_monitor():
@@ -87,6 +88,7 @@ def test_empty_latency_monitor():
     assert result["median_us"] == 0.0
     assert result["p95_us"] == 0.0
     assert result["p99_us"] == 0.0
+    assert result["max_us"] == 0.0
 
 
 def test_latency_monitor_rejects_negative_duration():
@@ -105,6 +107,7 @@ def test_latency_monitor_nearest_rank_p95_and_p99():
     assert result["count"] == 100
     assert result["p95_us"] == 95.0
     assert result["p99_us"] == 99.0
+    assert result["max_us"] == 100.0
 
 
 @pytest.mark.parametrize(
@@ -128,6 +131,7 @@ def test_latency_monitor_keeps_bounded_sample_window():
     assert result["median_us"] == 3.0
     assert result["p95_us"] == 4.0
     assert result["p99_us"] == 4.0
+    assert result["max_us"] == 4.0
 
 
 def test_latency_monitor_accepts_zero_duration():
@@ -140,6 +144,7 @@ def test_latency_monitor_accepts_zero_duration():
     assert result["median_us"] == 0.0
     assert result["p95_us"] == 0.0
     assert result["p99_us"] == 0.0
+    assert result["max_us"] == 0.0
 
 
 @pytest.mark.parametrize("max_samples", [0, -1])

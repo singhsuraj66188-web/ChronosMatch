@@ -6,7 +6,7 @@
 - Repository: ChronosMatch
 - Branch: `docs/day25-testing-coverage`
 - Base commit: `8cca4947146a6f00695a54d29148044a07b23bde`
-- Included merges: PR #91 (trade ledger and dashboard), PR #92 (million-order IPC benchmark), and PR #93 (live ledger-dashboard integration).
+- Included merges: PR #91 (trade ledger and dashboard), PR #92 (million-order IPC benchmark), and PR #93 (maximum latency metric in the latency monitor).
 - Environment for test verification: Windows, Python 3.14.8, pytest 9.1.1.
 - Test collection: 149 tests collected.
 - Full test suite: 149 passed in 4.14 seconds.
@@ -63,6 +63,8 @@ Prioritize these additions according to project requirements. Do not duplicate e
 Source reviewed: `benchmarks/benchmark_ipc_1m.py`.
 
 The script is designed to run a producer and consumer in separate processes using the shared-memory ring buffer. Its default workload is 1,000,000 orders and its default ring-buffer capacity is 4,096.
+
+Execution status: The million-order IPC benchmark was reviewed at source-code level but was not independently executed or reproduced as part of this QA review. Previously documented benchmark results in the repository remain historical evidence and are not results generated or independently verified during this review.
 
 ### Reported measurements
 

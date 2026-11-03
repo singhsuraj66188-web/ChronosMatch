@@ -28,7 +28,9 @@ class LatencyMonitor:
         if not values:
             return 0
         if not math.isfinite(percentile) or not 0 < percentile <= 100:
-            raise ValueError("percentile must be greater than 0 and at most 100")
+            raise ValueError(
+                "percentile must be greater than 0 and at most 100"
+            )
 
         index = math.ceil((percentile / 100) * len(values)) - 1
         return values[index]
@@ -40,6 +42,7 @@ class LatencyMonitor:
                 "median_us": 0.0,
                 "p95_us": 0.0,
                 "p99_us": 0.0,
+                "max_us": 0.0,
             }
 
         ordered = sorted(self._samples_ns)
@@ -49,4 +52,5 @@ class LatencyMonitor:
             "median_us": statistics.median(ordered) / 1000,
             "p95_us": self._percentile(ordered, 95) / 1000,
             "p99_us": self._percentile(ordered, 99) / 1000,
+            "max_us": max(ordered) / 1000,
         }

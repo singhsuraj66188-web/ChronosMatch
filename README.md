@@ -31,7 +31,7 @@ flowchart TB
         SIM --> ADAPTER
     end
 
-    subgraph TRANSPORT["02 | ZERO-COPY IPC TRANSPORT"]
+    subgraph TRANSPORT["02 | SHARED-MEMORY IPC TRANSPORT"]
         RB[("Shared-Memory Ring Buffer<br/>mmap | Fixed-Size Binary Records")]
     end
 
@@ -74,7 +74,7 @@ flowchart TB
 
 **Market Data Ingestion:** The synthetic market simulator generates market records, which are prepared by the simulator integration layer.
 
-**Zero-Copy IPC Transport:** Fixed-size binary records are transferred through a memory-mapped shared-memory ring buffer, avoiding unnecessary serialization overhead.
+**SHARED-MEMORY IPC TRANSPORT:** Fixed-size binary records are transferred through a memory-mapped shared-memory ring buffer, avoiding unnecessary serialization overhead.
 
 **Order Execution:** The matching consumer reads incoming records and passes them to the limit order book, where orders are processed and trades are generated.
 
@@ -95,35 +95,35 @@ The benchmark scripts cover different timing boundaries. The matching-engine ben
 
 ```text
 ChronosMatch/
-├── benchmarks/
-│   ├── benchmark_engine.py
-│   ├── benchmark_e2e.py
-│   └── benchmark_ring_buffer.py
-├── cython_test/
-│   ├── cython_orderbook.pyx
-│   ├── benchmark_cython_orderbook.py
-│   ├── test_cython_orderbook.py
-│   └── setup.py
-├── docs/
-│   ├── benchmark_results.md
-│   ├── e2e_testing_plan.md
-│   ├── ipc_ring_buffer_protocol.md
-│   └── testing_plan.md
-├── ipc/
-│   ├── matching_consumer.py
-│   └── ring_buffer.py
-├── monitoring/
-│   └── latency_monitor.py
-├── simulator/
-│   ├── market_simulator.py
-│   └── ring_buffer_integration.py
-├── src/chronosmatch/
-│   ├── __init__.py
-│   ├── matching_engine.py
-│   └── order.py
-├── tests/
-├── .github/workflows/tests.yml
-└── pyproject.toml
+â”œâ”€â”€ benchmarks/
+â”‚   â”œâ”€â”€ benchmark_engine.py
+â”‚   â”œâ”€â”€ benchmark_e2e.py
+â”‚   â””â”€â”€ benchmark_ring_buffer.py
+â”œâ”€â”€ cython_test/
+â”‚   â”œâ”€â”€ cython_orderbook.pyx
+â”‚   â”œâ”€â”€ benchmark_cython_orderbook.py
+â”‚   â”œâ”€â”€ test_cython_orderbook.py
+â”‚   â””â”€â”€ setup.py
+â”œâ”€â”€ docs/
+â”‚   â”œâ”€â”€ benchmark_results.md
+â”‚   â”œâ”€â”€ e2e_testing_plan.md
+â”‚   â”œâ”€â”€ ipc_ring_buffer_protocol.md
+â”‚   â””â”€â”€ testing_plan.md
+â”œâ”€â”€ ipc/
+â”‚   â”œâ”€â”€ matching_consumer.py
+â”‚   â””â”€â”€ ring_buffer.py
+â”œâ”€â”€ monitoring/
+â”‚   â””â”€â”€ latency_monitor.py
+â”œâ”€â”€ simulator/
+â”‚   â”œâ”€â”€ market_simulator.py
+â”‚   â””â”€â”€ ring_buffer_integration.py
+â”œâ”€â”€ src/chronosmatch/
+â”‚   â”œâ”€â”€ __init__.py
+â”‚   â”œâ”€â”€ matching_engine.py
+â”‚   â””â”€â”€ order.py
+â”œâ”€â”€ tests/
+â”œâ”€â”€ .github/workflows/tests.yml
+â””â”€â”€ pyproject.toml
 ```
 
 ## Run Locally
@@ -184,9 +184,9 @@ These measurements cover different stages and are not interchangeable. Results u
 
 ## Current Team
 
-- **Suraj Baliar Singh — Team Lead / Matching Engine, IPC Adapter, and Benchmarking:** Coordinates work distribution and integration; develops matching-engine and adapter functionality; records benchmark and test evidence.
-- **Avinash Rajagore — Shared-memory IPC / Ring Buffer:** Focuses on ring-buffer reliability, producer/consumer behavior, concurrency, and lifecycle handling.
-- **Samrudhi Gowda — Testing / Documentation:** Focuses on test coverage, testing plans, baseline evidence, and documentation reviews.
+- **Suraj Baliar Singh â€” Team Lead / Matching Engine, IPC Adapter, and Benchmarking:** Coordinates work distribution and integration; develops matching-engine and adapter functionality; records benchmark and test evidence.
+- **Avinash Rajagore â€” Shared-memory IPC / Ring Buffer:** Focuses on ring-buffer reliability, producer/consumer behavior, concurrency, and lifecycle handling.
+- **Samrudhi Gowda â€” Testing / Documentation:** Focuses on test coverage, testing plans, baseline evidence, and documentation reviews.
 
 Team contributions should be verified from the relevant commits and pull requests. Active members work on dedicated branches, with changes reviewed and merged into `main`.
 

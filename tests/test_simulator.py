@@ -242,3 +242,31 @@ def test_simulator_ticks_round_trip_through_ring_buffer(tmp_path):
             "quantity": tick.quantity,
             "side": tick.side,
         }
+
+
+def test_latency_monitor_even_sample_median_and_unit_conversion():
+    monitor = LatencyMonitor()
+
+    for duration_ns in (1_000, 2_000, 3_000, 4_000):
+        monitor.record(duration_ns)
+
+    summary = monitor.summary()
+
+    assert summary["count"] == 4
+    assert summary["median_us"] == 2.5
+    assert summary["p95_us"] == 4.0
+    assert summary["p99_us"] == 4.0
+    assert summary["max_us"] == 4.0
+
+
+def test_latency_monitor_max_excludes_evicted_sample():
+    monitor = LatencyMonitor(max_samples=3)
+
+    for duration_ns in (10_000, 1_000, 2_000, 3_000):
+        monitor.record(duration_ns)
+
+    summary = monitor.summary()
+
+    assert summary["count"] == 3
+    assert summary["median_us"] == 2.0
+    assert summary["max_us"] == 3.0

@@ -35,13 +35,16 @@ async def generate_ticks(
 
     rng = random.Random(seed)
     price = 10_000
+    last_timestamp_ns = 0
 
     for sequence in range(count):
         price = max(1, price + rng.choice((-2, -1, 0, 1, 2)))
+        timestamp_ns = max(time.perf_counter_ns(), last_timestamp_ns + 1)
+        last_timestamp_ns = timestamp_ns
 
         yield Tick(
             sequence=sequence,
-            timestamp_ns=time.perf_counter_ns(),
+            timestamp_ns=timestamp_ns,
             symbol="SIM",
             price_ticks=price,
             quantity=rng.randint(1, 10),

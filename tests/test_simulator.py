@@ -172,6 +172,31 @@ def test_simulator_timestamp_uses_perf_counter_ns(monkeypatch):
     assert ticks[0].timestamp_ns == expected_timestamp
 
 
+def test_simulator_timestamps_increase_when_clock_repeats(monkeypatch):
+    from types import SimpleNamespace
+    import simulator.market_simulator as market_simulator
+
+    fixed_timestamp = 123456789
+    monkeypatch.setattr(
+        market_simulator,
+        "time",
+        SimpleNamespace(perf_counter_ns=lambda: fixed_timestamp),
+    )
+
+    ticks = collect_ticks(count=3)
+    timestamps = [tick.timestamp_ns for tick in ticks]
+
+    assert timestamps == [
+        fixed_timestamp,
+        fixed_timestamp + 1,
+        fixed_timestamp + 2,
+    ]
+    assert all(
+        earlier < later
+        for earlier, later in zip(timestamps, timestamps[1:])
+    )
+
+
 def test_generated_tick_timestamps_are_valid_and_ordered():
     ticks = collect_ticks(count=20, seed=42)
 
@@ -182,7 +207,10 @@ def test_generated_tick_timestamps_are_valid_and_ordered():
         isinstance(timestamp, int) and timestamp > 0
         for timestamp in timestamps
     )
-    assert timestamps == sorted(timestamps)
+    assert all(
+        earlier < later
+        for earlier, later in zip(timestamps, timestamps[1:])
+    )
 
 
 def test_simulator_ticks_round_trip_through_ring_buffer(tmp_path):

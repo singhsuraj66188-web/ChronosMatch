@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import nullcontext
 import math
 import time
 from collections.abc import AsyncIterator
@@ -12,6 +13,8 @@ from chronosmatch.order import Trade
 from ipc.matching_consumer import process_record
 from ipc.ring_buffer import RingBuffer
 from monitoring.latency_monitor import LatencyMonitor
+from monitoring.live_dashboard import LiveDashboardState
+from monitoring.trade_ledger import TradeLedger
 from simulator.market_simulator import Tick
 
 
@@ -43,6 +46,7 @@ class IntegrationResult:
     )
     elapsed_ns: int = 0
     trades: list[Trade] = field(default_factory=list)
+    dashboard_state: LiveDashboardState | None = None
 
     @property
     def latency_sample_count(self) -> int:
@@ -57,6 +61,8 @@ async def transfer_ticks(
     retry_interval_ms: float = 1.0,
     poll_interval_ms: float = 0.1,
     engine: MatchingEngine | None = None,
+    ledger: TradeLedger | None = None,
+    dashboard_state: LiveDashboardState | None = None,
 ) -> IntegrationResult:
     """Transfer SIM ticks through an existing, initially empty ring buffer.
 
@@ -115,8 +121,26 @@ async def transfer_ticks(
             "poll_interval_ms must be finite and positive"
         )
 
+    if (ledger is not None or dashboard_state is not None) and engine is None:
+        raise ValueError(
+            "An engine is required when ledger or dashboard integration is enabled"
+        )
+
+    if dashboard_state is not None and dashboard_state.engine is not engine:
+        raise ValueError(
+            "dashboard_state must reference the same matching engine"
+        )
+
     metrics = IntegrationMetrics()
-    result = IntegrationResult(metrics=metrics)
+    result = IntegrationResult(
+        metrics=metrics,
+        dashboard_state=dashboard_state,
+        matching_latency_monitor=(
+            dashboard_state.latency_monitor
+            if dashboard_state is not None
+            else LatencyMonitor()
+        ),
+    )
     producer_done = asyncio.Event()
 
     start_times: dict[int, int] = {}
@@ -166,27 +190,59 @@ async def transfer_ticks(
             )
 
             if engine is not None:
-                matching_started_ns = time.perf_counter_ns()
-
-                # Count a record as processed only if process_record()
-                # completes successfully.
-                matching_trades = process_record(record, engine)
-
-                matching_completed_ns = time.perf_counter_ns()
-
-                metrics.matching_processed_records += 1
-                result.trades.extend(matching_trades)
-
-                matching_latency_ns = (
-                    matching_completed_ns - matching_started_ns
-                )
-                result.matching_latency_monitor.record(
-                    matching_latency_ns
+                # The dashboard uses this same lock when taking a snapshot.
+                # This prevents it from reading the order book mid-update.
+                state_lock = (
+                    dashboard_state.lock
+                    if dashboard_state is not None
+                    else nullcontext()
                 )
 
-                result.matching_completion_latency_monitor.record(
-                    matching_completed_ns - started_ns
-                )
+                with state_lock:
+                    matching_started_ns = time.perf_counter_ns()
+
+                    # Count a record as processed only if process_record()
+                    # completes successfully.
+                    matching_trades = process_record(record, engine)
+
+                    matching_completed_ns = time.perf_counter_ns()
+
+                    metrics.matching_processed_records += 1
+                    result.trades.extend(matching_trades)
+
+                    matching_latency_ns = (
+                        matching_completed_ns - matching_started_ns
+                    )
+                    result.matching_latency_monitor.record(
+                        matching_latency_ns
+                    )
+
+                    result.matching_completion_latency_monitor.record(
+                        matching_completed_ns - started_ns
+                    )
+
+                    if matching_trades:
+                        # Each distinct execution price represents one
+                        # price level swept by this incoming order.
+                        levels_cleared = len(
+                            {trade.price for trade in matching_trades}
+                        )
+
+                        if ledger is not None:
+                            for trade in matching_trades:
+                                ledger.record(
+                                    price_ticks=trade.price,
+                                    quantity=trade.quantity,
+                                    buy_order_id=trade.buy_order_id,
+                                    sell_order_id=trade.sell_order_id,
+                                    ts_ns=record["timestamp_ns"],
+                                )
+
+                        if dashboard_state is not None:
+                            dashboard_state.record_trades(
+                                matching_trades,
+                                levels_cleared=levels_cleared,
+                            )
 
     consumer_task = asyncio.create_task(consume())
 

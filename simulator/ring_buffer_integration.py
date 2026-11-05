@@ -131,6 +131,11 @@ async def transfer_ticks(
             "dashboard_state must reference the same matching engine"
         )
 
+    next_buffer_sequence = 0
+    sequence_initializer = getattr(ring, "next_sequence_if_empty", None)
+    if callable(sequence_initializer):
+        next_buffer_sequence = sequence_initializer()
+
     metrics = IntegrationMetrics()
     result = IntegrationResult(
         metrics=metrics,
@@ -145,7 +150,6 @@ async def transfer_ticks(
 
     start_times: dict[int, int] = {}
     simulator_sequences: dict[int, int] = {}
-    next_buffer_sequence = 0
     start_ns = time.perf_counter_ns()
 
     async def consume() -> None:

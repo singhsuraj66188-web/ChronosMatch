@@ -270,3 +270,22 @@ def test_latency_monitor_max_excludes_evicted_sample():
     assert summary["count"] == 3
     assert summary["median_us"] == 2.0
     assert summary["max_us"] == 3.0
+
+@pytest.mark.parametrize(
+    "duration",
+    [
+        True,
+        False,
+        1.5,
+        float("nan"),
+        float("inf"),
+        float("-inf"),
+        "1000",
+        None,
+    ],
+)
+def test_latency_monitor_rejects_invalid_duration_types(duration):
+    monitor = LatencyMonitor()
+
+    with pytest.raises(TypeError, match="duration_ns must be an integer"):
+        monitor.record(duration)

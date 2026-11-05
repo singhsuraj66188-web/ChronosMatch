@@ -18,8 +18,12 @@ class LatencyMonitor:
         self._samples_ns: deque[int] = deque(maxlen=max_samples)
 
     def record(self, duration_ns: int) -> None:
+        if isinstance(duration_ns, bool) or not isinstance(duration_ns, int):
+            raise TypeError("duration_ns must be an integer")
+
         if duration_ns < 0:
             raise ValueError("duration_ns cannot be negative")
+
         self._samples_ns.append(duration_ns)
 
     @staticmethod

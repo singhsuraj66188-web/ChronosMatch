@@ -127,6 +127,28 @@ class RingBuffer:
     def _counters(self) -> tuple[int, int]:
         return _HEADER.unpack(self._map[_HEADER_OFFSET:_DATA_OFFSET])
 
+    def next_sequence_if_empty(self) -> int:
+        """Return the next write sequence, but only if the buffer is empty."""
+        self._begin_operation()
+        locked = False
+        try:
+            self._lock()
+            locked = True
+
+            write_seq, read_seq = self._counters()
+            if write_seq != read_seq:
+                raise RuntimeError(
+                    "Ring buffer must be empty before starting integration"
+                )
+
+            return write_seq
+        finally:
+            try:
+                if locked:
+                    self._unlock()
+            finally:
+                self._end_operation()
+
     def write(
         self,
         *,

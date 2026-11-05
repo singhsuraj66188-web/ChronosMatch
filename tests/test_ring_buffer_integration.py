@@ -688,3 +688,80 @@ def test_sustained_small_buffer_pipeline_processes_every_tick(tmp_path):
         )
 
     asyncio.run(run_test())
+
+
+def test_reopened_drained_buffer_continues_sequence(tmp_path):
+    async def run_test():
+        path = tmp_path / "reopened_drained.dat"
+
+        with RingBuffer(path, capacity=4, create=True) as ring:
+            assert ring.write(
+                timestamp_ns=100,
+                price_ticks=101,
+                quantity=2,
+                side=1,
+            )
+            assert ring.read()["sequence"] == 0
+
+        with RingBuffer(path, capacity=4) as ring:
+            async def produce_ticks():
+                yield Tick(
+                    sequence=0,
+                    timestamp_ns=200,
+                    symbol="SIM",
+                    price_ticks=102,
+                    quantity=3,
+                    side=2,
+                )
+
+            result = await transfer_ticks(produce_ticks(), ring)
+
+            assert result.metrics.successful_writes == 1
+            assert result.metrics.successful_reads == 1
+            assert result.transferred_ticks[0]["sequence"] == 1
+            assert result.transferred_ticks[0]["simulator_sequence"] == 0
+            assert result.transferred_ticks[0]["timestamp_ns"] == 200
+            assert result.transferred_ticks[0]["price_ticks"] == 102
+            assert result.transferred_ticks[0]["quantity"] == 3
+            assert result.transferred_ticks[0]["side"] == 2
+            assert ring.read() is None
+
+    asyncio.run(run_test())
+
+
+def test_transfer_rejects_nonempty_buffer_without_consuming_record(tmp_path):
+    async def run_test():
+        path = tmp_path / "nonempty_preflight.dat"
+
+        with RingBuffer(path, capacity=4, create=True) as ring:
+            original = {
+                "timestamp_ns": 100,
+                "price_ticks": 101,
+                "quantity": 2,
+                "side": 1,
+            }
+            assert ring.write(**original)
+
+            async def produce_ticks():
+                yield Tick(
+                    sequence=0,
+                    timestamp_ns=200,
+                    symbol="SIM",
+                    price_ticks=102,
+                    quantity=3,
+                    side=2,
+                )
+
+            with pytest.raises(
+                RuntimeError,
+                match="Ring buffer must be empty",
+            ):
+                await transfer_ticks(produce_ticks(), ring)
+
+            assert ring.read() == {
+                "sequence": 0,
+                **original,
+            }
+            assert ring.read() is None
+
+    asyncio.run(run_test())

@@ -1,0 +1,14 @@
+﻿services:
+  - type: web
+    name: chronosmatch-dashboard
+    runtime: python
+    plan: free
+    region: singapore
+    branch: feature/public-dashboard-deployment
+    autoDeployTrigger: off
+    buildCommand: python -m compileall -q ipc monitoring simulator src web_dashboard
+    startCommand: PYTHONPATH=src:$PYTHONPATH python -m web_dashboard.server
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.14.10

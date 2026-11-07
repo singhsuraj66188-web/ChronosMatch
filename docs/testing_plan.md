@@ -1,4 +1,4 @@
-﻿# ChronosMatch Testing Plan
+# ChronosMatch Testing Plan
 
 ## 1. Purpose
 
@@ -22,7 +22,7 @@ python -m pytest tests/test_ring_buffer.py tests/test_ring_buffer_integration.py
 
 ## 3. Existing Test Coverage
 
-The latest verified full-suite baseline is the Day 24 run on commit `6bfdad084006fb40e1fe23b6fb42c2e8b2c4c0ad`. It completed with 121 passed in 2.65 seconds using Python 3.14.8 and pytest 9.1.1 on Windows 11. Earlier results are retained below as historical evidence.
+The latest recorded full-suite result is 196 passed in 6.81 seconds on November 7, 2026. This result was obtained during the Day 29 QA review. Earlier results, including the Day 24 baseline, are retained below as historical evidence.
 
 ### Order Validation (`tests/test_orders.py`)
 

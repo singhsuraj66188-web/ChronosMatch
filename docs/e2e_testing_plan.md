@@ -1,4 +1,4 @@
-# ChronosMatch End-to-End Testing Plan
+﻿# ChronosMatch End-to-End Testing Plan
 
 ## Objective
 
@@ -30,31 +30,43 @@ The Day 17 full-suite result confirms that the suite passed on the tested commit
 
 ## Latest Test Results
 
-**Day 24 verification -2 November 2026**
+**Day 29 full-suite verification - November 7, 2026**
 
-- **Branch:** `docs/day24-testing-verification`
-- **Tested commit:** `6bfdad084006fb40e1fe23b6fb42c2e8b2c4c0ad`
-- **Platform:** Windows 11, AMD64
-- **Python:** 3.14.8
-- **pytest:** 9.1.1
+Command: `python -m pytest -v`
 
-| Verification | Collected | Passed | Duration |
-|---|---:|---:|---:|
-| Full-suite collection | 121 | — | 0.20 seconds |
-| Full suite | 121 | 121 | 2.65 seconds |
-| Dedicated end-to-end test | 1 | 1 | 0.04 seconds |
+- Full-suite result: 196 passed in 6.81 seconds.
+- Failures: 0.
+- Scope: Complete repository test suite.
 
-- **Full-suite failures:** 0
-- **Full-suite skipped tests:** 0
+This is the latest full-suite result recorded during the Day 29 QA review. It does not independently establish production performance or concurrent live-pipeline behaviour.
 
-The dedicated test `test_simulator_ring_buffer_matching_engine_end_to_end` passed. It verifies a sequential transfer-and-process workflow: simulator records are transferred before the matching adapter processes them.
+**Day 28 final integration verification**
 
-The separate ring-buffer producer-consumer tests cover concurrency in their tested scenarios. They do not establish concurrent live matching-engine consumption while the simulator is producing records.
+Source: `docs/day28_final_integration_qa.md`
 
-**Coverage limitation:** A concurrent simulator-to-matching-engine end-to-end workflow remains unverified. This should be discussed with the project lead before adding or changing tests.
+- Focused integration tests: 130 passed in 3.93 seconds.
+- Full suite: 185 passed in 4.16 seconds.
+- Environment: Windows 11, Python 3.14.8, pytest 9.1.1.
 
-The focused test count overlaps with the full suite and must not be added to the 121 full-suite passes.
+**Day 28 IPC reliability audit**
 
+Source: `docs/day28-ipc-reliability-audit.md`
+
+- Focused IPC baseline: 72 passed.
+- Reliability stress subset: 14 passed per run across 5 runs.
+- Full IPC suite: 72 passed across 3 runs.
+- Initial full repository suite: 185 passed in 5.08 seconds.
+- Documentation follow-up full suite: 196 passed in 11.20 seconds.
+
+These are separate historical executions. Focused counts overlap with the full suite and must not be added to full-suite counts.
+
+**Historical Day 24 verification**
+
+- Full suite: 121 passed in 2.65 seconds.
+- Environment: Windows 11, Python 3.14.8, pytest 9.1.1.
+- Dedicated end-to-end test: 1 passed in 0.04 seconds.
+
+The dedicated test verifies a sequential transfer-and-process workflow. It does not establish concurrent matching-engine consumption while the simulator is producing records.
 ### Day 22 Focused Collection and Source Review
 
 | Test file | Tests collected | Verified coverage |

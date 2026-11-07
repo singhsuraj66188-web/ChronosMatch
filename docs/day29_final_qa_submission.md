@@ -1,4 +1,4 @@
-﻿# Day 29 - Final QA Evidence Consolidation
+# Day 29 - Final QA Evidence Consolidation
 
 Date: November 7, 2026
 Branch: docs/day29-final-qa-submission
@@ -68,9 +68,23 @@ The repository contains:
 
 The implementation includes a browser server, health check, synthetic market data, simulated trading and isolated browser sessions.
 
-PR #104 prepared dashboard and deployment-related changes. The inspected Render configuration uses the `feature/public-dashboard-deployment` branch and has automatic deployment disabled.
+### Public Deployment Verification
 
-No verified public deployment URL or successful live deployment evidence was supplied. Public deployment remains unverified.
+The deployed public dashboard was successfully verified through the following checks:
+
+- Public homepage returned HTTP 200.
+- `/healthz` returned HTTP 200.
+- Paper-trading order placement was manually tested.
+- Paper-trading order cancellation was manually tested.
+- Trade history was manually checked.
+
+These checks confirm that the deployed dashboard was accessible and its basic paper-trading workflows were functioning during manual verification.
+
+The dashboard uses synthetic market data and paper trading. It is not a live exchange or production trading system.
+
+### Verification Scope
+
+Deployment availability and basic functionality have been verified. This does not establish the system's performance under prolonged load, prove the complete system's 50-microsecond end-to-end target, or establish production-level reliability. These performance and reliability limitations remain documented in the following sections.
 
 ## 7. Benchmark Evidence
 

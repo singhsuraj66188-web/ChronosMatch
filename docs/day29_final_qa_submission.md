@@ -88,7 +88,7 @@ Verification date: Exact historical date not recorded in the available QA eviden
 
 ### Verification Scope
 
-Deployment availability and basic functionality have been verified. This does not establish the system's performance under prolonged load, prove the complete system's 50-microsecond end-to-end target, or establish production-level reliability. These performance and reliability limitations remain documented in the following sections.
+Deployment availability and basic functionality were verified at the time of the reported checks. Current deployment availability has not been independently rechecked. This does not establish the system's performance under prolonged load, prove the complete system's 50-microsecond end-to-end target, or establish production-level reliability. These performance and reliability limitations remain documented in the following sections.
 
 ## 7. Benchmark Evidence
 

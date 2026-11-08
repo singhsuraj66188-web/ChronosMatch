@@ -886,6 +886,49 @@ def test_separate_instances_serialize_concurrent_writers(tmp_path):
     assert set(actual) == expected
     assert len({record["sequence"] for record in records}) == len(expected)
 
+
+def test_full_buffer_rejects_write_and_recovers_after_consume(tmp_path):
+    path = tmp_path / "full-buffer-recovery.bin"
+
+    with RingBuffer(path, capacity=8, create=True) as ring:
+        for i in range(8):
+            assert ring.write(
+                timestamp_ns=i + 100,
+                price_ticks=i + 200,
+                quantity=1,
+                side=1,
+            )
+
+        # A full buffer must reject a write without consuming a sequence.
+        assert ring.write(
+            timestamp_ns=108,
+            price_ticks=208,
+            quantity=1,
+            side=1,
+        ) is False
+
+        first = ring.read()
+        assert first is not None
+        assert first["sequence"] == 0
+
+        # Consuming one record must make exactly one slot available.
+        assert ring.write(
+            timestamp_ns=108,
+            price_ticks=208,
+            quantity=1,
+            side=1,
+        )
+
+        records = []
+        while (record := ring.read()) is not None:
+            records.append(record)
+
+    assert [record["sequence"] for record in [first, *records]] == list(range(9))
+    assert [record["timestamp_ns"] for record in [first, *records]] == [
+        i + 100 for i in range(9)
+    ]
+    assert len({record["sequence"] for record in [first, *records]}) == 9
+
 def test_repeated_concurrent_producer_consumer_preserves_every_field(tmp_path):
     import json
 

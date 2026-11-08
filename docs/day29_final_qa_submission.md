@@ -1,7 +1,7 @@
 # Day 29 - Final QA Evidence Consolidation
 
 Date: November 7, 2026
-Branch: docs/day29-final-qa-submission
+Branch: docs/day29-deployment-verification
 Role: QA, testing and documentation
 
 ## 1. Objective
@@ -82,6 +82,10 @@ These checks confirm that the deployed dashboard was accessible and its basic pa
 
 The dashboard uses synthetic market data and paper trading. It is not a live exchange or production trading system.
 
+Public dashboard URL: https://chronosmatch-dashboard-ig0n.onrender.com
+
+Verification date: Exact historical date not recorded in the available QA evidence. The checks below were reported by the project lead.
+
 ### Verification Scope
 
 Deployment availability and basic functionality have been verified. This does not establish the system's performance under prolonged load, prove the complete system's 50-microsecond end-to-end target, or establish production-level reliability. These performance and reliability limitations remain documented in the following sections.
@@ -126,8 +130,7 @@ PRs #104 and #105 are project changes reviewed, not implementation work claimed 
 5. Independently executed million-order IPC benchmark with retained output.
 6. Concurrent live simulator production and matching-engine consumption under sustained load.
 7. Interactive terminal behaviour across different terminal sizes.
-8. Successful public dashboard deployment.
-9. Database initialization and broader commit-failure recovery evidence.
+8. Database initialization and broader commit-failure recovery evidence.
 
 These are evidence gaps, not claims of observed defects.
 

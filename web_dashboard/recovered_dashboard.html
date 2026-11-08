@@ -5,434 +5,1347 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#080d18">
-<title>ChronosMatch | Paper Trading</title>
+<title>ChronosMatch Nexus | Paper Trading</title>
+
 <style>
-:root{color-scheme:dark;--bg:#080d18;--panel:#111a2b;--panel2:#0d1524;--line:#233149;--muted:#8293ad;--text:#e8eef8;--cyan:#42c8f5;--green:#26d69a;--red:#ff647c}
+:root{
+    color-scheme:dark;
+    --bg:#080d18;
+    --panel:#111a2b;
+    --panel2:#0d1524;
+    --line:#233149;
+    --muted:#8293ad;
+    --text:#e8eef8;
+    --cyan:#42c8f5;
+    --green:#26d69a;
+    --red:#ff647c;
+}
+
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:14px Inter,Segoe UI,Arial,sans-serif}
-.top{height:68px;padding:0 25px;background:#0b1321;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:3}
-.brand{font-size:19px;font-weight:800}
-.brand small{display:block;color:var(--muted);font-size:10px;letter-spacing:1px;margin-top:4px}
-.pill{border:1px solid #285746;color:var(--green);border-radius:20px;padding:7px 12px;font-size:11px;font-weight:800}
-main{max-width:1550px;margin:auto;padding:22px 25px}
-.head{display:flex;justify-content:space-between;align-items:center;margin:0 0 13px}
-.head h2,.ptitle{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#a9bad2;margin:0}
-.muted{color:var(--muted);font-size:11px}
-.markets{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:15px}
-.market,.panel,.stat{background:var(--panel);border:1px solid var(--line);border-radius:11px}
-.market{padding:14px 16px;cursor:pointer}
-.market.active{border-color:#299dca;background:#12243a}
-.market b{font-size:12px}
-.market .price{font-size:21px;font-weight:800;margin-top:9px}
-.market .muted{margin-top:4px}
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:15px}
-.stat{padding:14px 16px}
-.stat label,.cell label{display:block;color:var(--muted);font-size:10px;margin-bottom:8px}
-.stat strong{font-size:20px;font-variant-numeric:tabular-nums}
-.stat small{display:block;color:var(--muted);font-size:10px;margin-top:5px}
-.layout{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(300px,.85fr);gap:14px}
-.stack{display:grid;gap:14px}
-.panel{padding:16px;min-width:0}
-.panelhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
-.chartprice{font-size:25px;font-weight:800;margin:7px 0}
-.chartprice span{font-size:12px;color:var(--muted);font-weight:500}
-canvas{width:100%;height:230px;display:block}
-.book{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
-th,td{text-align:right;padding:7px 5px;border-bottom:1px solid #1d2a3e;font-size:11px}
-th{color:var(--muted);font-size:10px}
+
+body{
+    margin:0;
+    background:
+        radial-gradient(ellipse at 50% -20%,#142b45 0%,transparent 55%),
+        var(--bg);
+    color:var(--text);
+    font:14px Inter,Segoe UI,Arial,sans-serif;
+}
+
+button,input,select{font:inherit}
+
+.top{
+    min-height:68px;
+    padding:0 25px;
+    background:rgba(11,19,33,.94);
+    border-bottom:1px solid var(--line);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    position:sticky;
+    top:0;
+    z-index:3;
+    backdrop-filter:blur(14px);
+}
+
+.brand{
+    font-size:19px;
+    font-weight:900;
+    letter-spacing:.3px;
+}
+
+.brand small{
+    display:block;
+    color:var(--muted);
+    font-size:10px;
+    letter-spacing:1.5px;
+    margin-top:4px;
+}
+
+.top-right{
+    display:flex;
+    align-items:center;
+    gap:12px;
+}
+
+.connection{
+    color:var(--muted);
+    font-size:10px;
+}
+
+.pill{
+    border:1px solid #285746;
+    color:var(--green);
+    border-radius:20px;
+    padding:7px 12px;
+    font-size:11px;
+    font-weight:800;
+    background:#10271f;
+}
+
+main{
+    max-width:1550px;
+    margin:auto;
+    padding:24px 25px;
+}
+
+.head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    margin:0 0 13px;
+}
+
+.head h2,.ptitle{
+    font-size:12px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    color:#a9bad2;
+    margin:0;
+}
+
+.muted{
+    color:var(--muted);
+    font-size:11px;
+}
+
+.markets{
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:12px;
+    margin-bottom:15px;
+}
+
+.market,.panel,.stat{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:11px;
+}
+
+.market{
+    padding:16px;
+    cursor:pointer;
+    position:relative;
+    overflow:hidden;
+    min-width:0;
+    transition:transform .18s,border-color .18s,background .18s;
+    background:linear-gradient(145deg,#142238,#0e192a);
+}
+
+.market:hover{
+    transform:translateY(-3px);
+    border-color:var(--cyan);
+}
+
+.market.active{
+    border-color:var(--cyan);
+    background:linear-gradient(145deg,#16334b,#102238);
+    box-shadow:0 0 20px rgba(66,200,245,.10);
+}
+
+.market.active:after{
+    content:"";
+    position:absolute;
+    width:4px;
+    top:0;
+    bottom:0;
+    left:0;
+    background:var(--cyan);
+}
+
+.market-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:8px;
+}
+
+.market b{
+    font-size:12px;
+    letter-spacing:.4px;
+}
+
+.market-symbol{
+    color:var(--cyan);
+    font-size:10px;
+    letter-spacing:.8px;
+}
+
+.market .price{
+    font-size:22px;
+    font-weight:800;
+    margin-top:12px;
+    font-variant-numeric:tabular-nums;
+    overflow-wrap:anywhere;
+}
+
+.market-meta{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:8px;
+    margin-top:9px;
+}
+
+.market-tag{
+    font-size:9px;
+    color:var(--muted);
+    border:1px solid var(--line);
+    border-radius:20px;
+    padding:4px 7px;
+}
+
+.market-type{
+    font-size:10px;
+    color:var(--muted);
+}
+
+.market-toolbar{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    flex-wrap:wrap;
+    margin-bottom:13px;
+}
+
+.market-search{
+    flex:1;
+    min-width:190px;
+    padding:11px 13px;
+    background:var(--panel2);
+    color:var(--text);
+    border:1px solid var(--line);
+    border-radius:8px;
+    outline:none;
+}
+
+.market-search:focus{
+    border-color:var(--cyan);
+    box-shadow:0 0 0 2px rgba(66,200,245,.08);
+}
+
+.market-filter{
+    padding:11px 13px;
+    background:var(--panel2);
+    color:var(--text);
+    border:1px solid var(--line);
+    border-radius:8px;
+    cursor:pointer;
+}
+
+.market-count{
+    color:var(--muted);
+    font-size:10px;
+    white-space:nowrap;
+}
+
+.stats{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:12px;
+    margin-bottom:15px;
+}
+
+.stat{
+    padding:14px 16px;
+    min-width:0;
+}
+
+.stat label,.cell label{
+    display:block;
+    color:var(--muted);
+    font-size:10px;
+    margin-bottom:8px;
+}
+
+.stat strong{
+    font-size:20px;
+    font-variant-numeric:tabular-nums;
+    overflow-wrap:anywhere;
+}
+
+.stat small{
+    display:block;
+    color:var(--muted);
+    font-size:10px;
+    margin-top:5px;
+}
+
+.layout{
+    display:grid;
+    grid-template-columns:minmax(0,1.6fr) minmax(300px,.85fr);
+    gap:14px;
+}
+
+.stack{
+    display:grid;
+    gap:14px;
+    align-content:start;
+}
+
+.panel{
+    padding:16px;
+    min-width:0;
+    overflow:hidden;
+}
+
+.panelhead{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+    margin-bottom:14px;
+}
+
+.chartprice{
+    font-size:25px;
+    font-weight:800;
+    margin:7px 0;
+    font-variant-numeric:tabular-nums;
+}
+
+.chartprice span{
+    font-size:12px;
+    color:var(--muted);
+    font-weight:500;
+}
+
+canvas{
+    width:100%;
+    height:230px;
+    display:block;
+}
+
+.book{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    font-variant-numeric:tabular-nums;
+}
+
+th,td{
+    text-align:right;
+    padding:7px 5px;
+    border-bottom:1px solid #1d2a3e;
+    font-size:11px;
+}
+
+th{
+    color:var(--muted);
+    font-size:10px;
+}
+
 th:first-child,td:first-child{text-align:left}
 .bid{color:var(--green)}
 .ask{color:var(--red)}
-.spread{text-align:center;color:var(--muted);font-size:10px;padding:8px;border-top:1px solid var(--line);margin-top:5px}
-.tabs{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:13px}
-.tab{padding:10px;border:1px solid var(--line);border-radius:7px;background:var(--panel2);color:var(--muted);font-weight:800;cursor:pointer}
-.tab.active.buy{background:#123b34;border-color:#237d63;color:var(--green)}
-.tab.active.sell{background:#3b1d2a;border-color:#8e3b50;color:var(--red)}
+
+.spread{
+    text-align:center;
+    color:var(--muted);
+    font-size:10px;
+    padding:8px;
+    border-top:1px solid var(--line);
+    margin-top:5px;
+}
+
+.tabs{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:7px;
+    margin-bottom:13px;
+}
+
+.tab{
+    padding:10px;
+    border:1px solid var(--line);
+    border-radius:7px;
+    background:var(--panel2);
+    color:var(--muted);
+    font-weight:800;
+    cursor:pointer;
+}
+
+.tab.active.buy{
+    background:#123b34;
+    border-color:#237d63;
+    color:var(--green);
+}
+
+.tab.active.sell{
+    background:#3b1d2a;
+    border-color:#8e3b50;
+    color:var(--red);
+}
+
 .field{margin:11px 0}
-.field label{display:block;color:var(--muted);font-size:10px;margin-bottom:6px}
-.field input{width:100%;padding:11px;background:#0b1321;color:var(--text);border:1px solid var(--line);border-radius:7px}
-.summary{display:flex;justify-content:space-between;color:var(--muted);font-size:11px;margin:13px 0}
-.submit{width:100%;padding:12px;border:0;border-radius:7px;background:var(--green);color:#062018;font-weight:900;cursor:pointer}
-.submit.sell{background:var(--red);color:#260710}
-.msg{min-height:18px;margin-top:9px;font-size:11px;color:var(--muted)}
+
+.field label{
+    display:block;
+    color:var(--muted);
+    font-size:10px;
+    margin-bottom:6px;
+}
+
+.field input{
+    width:100%;
+    padding:11px;
+    background:#0b1321;
+    color:var(--text);
+    border:1px solid var(--line);
+    border-radius:7px;
+}
+
+.field input:focus{
+    outline:none;
+    border-color:var(--cyan);
+}
+
+.summary{
+    display:flex;
+    justify-content:space-between;
+    color:var(--muted);
+    font-size:11px;
+    margin:13px 0;
+}
+
+.submit{
+    width:100%;
+    padding:12px;
+    border:0;
+    border-radius:7px;
+    background:var(--green);
+    color:#062018;
+    font-weight:900;
+    cursor:pointer;
+}
+
+.submit.sell{
+    background:var(--red);
+    color:#260710;
+}
+
+.submit:disabled{
+    opacity:.6;
+    cursor:wait;
+}
+
+.msg{
+    min-height:18px;
+    margin-top:9px;
+    font-size:11px;
+    color:var(--muted);
+}
+
 .ok{color:var(--green)}
 .err{color:var(--red)}
-.account{display:grid;grid-template-columns:1fr 1fr;gap:9px}
-.cell{padding:10px;background:var(--panel2);border-radius:7px}
-.cell strong{font-size:13px}
-.bottom{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
-.empty{text-align:center;color:var(--muted);padding:16px}
-.cancel-order{padding:6px 10px;border:1px solid #713344;border-radius:6px;background:#351b29;color:var(--red);font-size:10px;font-weight:800;cursor:pointer}
-.cancel-order:hover{background:#542334;border-color:var(--red)}
-.cancel-order:disabled{opacity:.5;cursor:wait}
-footer{color:#62738e;font-size:10px;line-height:1.6;margin-top:18px}
-@media(max-width:1000px){.layout{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:620px){main{padding:14px}.top{padding:0 14px}.markets{grid-template-columns:1fr}.bottom{grid-template-columns:1fr}.book{gap:7px}.panel{padding:12px}}
+
+.account{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:9px;
+}
+
+.cell{
+    padding:10px;
+    background:var(--panel2);
+    border-radius:7px;
+    min-width:0;
+}
+
+.cell strong{
+    font-size:13px;
+    overflow-wrap:anywhere;
+}
+
+.bottom{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+    margin-top:14px;
+}
+
+.empty{
+    text-align:center;
+    color:var(--muted);
+    padding:16px;
+}
+
+.cancel-order{
+    padding:6px 10px;
+    border:1px solid #713344;
+    border-radius:6px;
+    background:#351b29;
+    color:var(--red);
+    font-size:10px;
+    font-weight:800;
+    cursor:pointer;
+}
+
+.cancel-order:hover{
+    background:#542334;
+    border-color:var(--red);
+}
+
+.cancel-order:disabled{
+    opacity:.5;
+    cursor:wait;
+}
+
+footer{
+    color:#62738e;
+    font-size:10px;
+    line-height:1.6;
+    margin-top:18px;
+}
+
+@media(max-width:1100px){
+    .markets{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .layout{grid-template-columns:1fr}
+    .stats{grid-template-columns:repeat(2,1fr)}
+}
+
+@media(max-width:720px){
+    .markets{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .bottom{grid-template-columns:1fr}
+}
+
+@media(max-width:480px){
+    main{padding:14px}
+    .top{padding:0 14px}
+    .markets{grid-template-columns:1fr}
+    .stats{grid-template-columns:1fr 1fr}
+    .book{gap:7px}
+    .panel{padding:12px}
+    .connection{display:none}
+    .head{align-items:flex-start}
+    .market-toolbar{align-items:stretch}
+    .market-search{min-width:100%}
+}
 </style>
 </head>
+
 <body>
+
 <div class="top">
-<div class="brand">ChronosMatch<small>SYNTHETIC PAPER-TRADING TERMINAL</small></div>
-<span class="pill">● PAPER MODE</span>
+    <div class="brand">
+        ChronosMatch <span style="color:var(--cyan)">NEXUS</span>
+        <small>SYNTHETIC PAPER-TRADING TERMINAL</small>
+    </div>
+
+    <div class="top-right">
+        <span class="connection">SIMULATION ENVIRONMENT</span>
+        <span class="pill">● PAPER MODE</span>
+    </div>
 </div>
 
 <main>
-<div class="head"><h2>Markets</h2><span class="muted">Select a synthetic instrument</span></div>
-<section class="markets" id="markets"><div class="market">Loading…</div></section>
 
+<!-- MARKET EXPLORER -->
+<div class="head">
+    <h2>Market Explorer</h2>
+    <span class="muted">12 synthetic instruments · Paper trading</span>
+</div>
+
+<div class="market-toolbar">
+    <input
+        id="marketSearch"
+        class="market-search"
+        type="search"
+        placeholder="Search BTC, NVIDIA, XRP..."
+        autocomplete="off"
+        aria-label="Search markets"
+    >
+
+    <select id="marketFilter" class="market-filter" aria-label="Filter markets">
+        <option value="ALL">All instruments</option>
+        <option value="CRYPTO">Crypto</option>
+        <option value="STOCKS">Stocks</option>
+    </select>
+
+    <span class="market-count" id="marketCount">12 instruments</span>
+</div>
+
+<section class="markets" id="markets">
+    <div class="market">Loading markets...</div>
+</section>
+
+<!-- PORTFOLIO STATISTICS -->
 <section class="stats">
-<div class="stat"><label>AVAILABLE VIRTUAL CASH</label><strong id="cash">—</strong><small>Unreserved funds</small></div>
-<div class="stat"><label>SELECTED HOLDINGS</label><strong id="holdings">—</strong><small id="holdingSymbol">BTC-SIM</small></div>
-<div class="stat"><label>OPEN PAPER ORDERS</label><strong id="openCount">—</strong><small>All instruments</small></div>
-<div class="stat"><label>RECORDED PAPER TRADES</label><strong id="tradeCount">—</strong><small>Executed user trades</small></div>
+    <div class="stat">
+        <label>AVAILABLE VIRTUAL CASH</label>
+        <strong id="cash">—</strong>
+        <small>Unreserved funds</small>
+    </div>
+
+    <div class="stat">
+        <label>SELECTED HOLDINGS</label>
+        <strong id="holdings">—</strong>
+        <small id="holdingSymbol">BTC-SIM</small>
+    </div>
+
+    <div class="stat">
+        <label>OPEN PAPER ORDERS</label>
+        <strong id="openCount">—</strong>
+        <small>All instruments</small>
+    </div>
+
+    <div class="stat">
+        <label>RECORDED PAPER TRADES</label>
+        <strong id="tradeCount">—</strong>
+        <small>Executed user trades</small>
+    </div>
 </section>
 
+<!-- MAIN DASHBOARD -->
 <section class="layout">
-<div class="stack">
-<div class="panel">
-<div class="panelhead"><h3 class="ptitle" id="chartTitle">Market price</h3><span class="muted">Recent synthetic snapshots</span></div>
-<div class="chartprice" id="selectedPrice">— <span id="selectedSymbol">BTC-SIM</span></div>
-<canvas id="chart" width="1000" height="280"></canvas>
-<div class="muted" id="chartUpdated">Waiting for market data</div>
-</div>
 
-<div class="panel">
-<div class="panelhead"><h3 class="ptitle">Order book · <span id="bookSymbol">BTC-SIM</span></h3><span class="muted">Top 5 levels</span></div>
-<div class="book">
-<div><div class="bid muted">BIDS · BUYERS</div><table><thead><tr><th>Price</th><th>Qty</th></tr></thead><tbody id="bids"></tbody></table></div>
-<div><div class="ask muted">ASKS · SELLERS</div><table><thead><tr><th>Price</th><th>Qty</th></tr></thead><tbody id="asks"></tbody></table></div>
-</div>
-<div class="spread" id="spread">Spread —</div>
-</div>
+    <div class="stack">
 
-<div class="panel">
-<div class="panelhead"><h3 class="ptitle">Matching engine monitor</h3><span class="muted" id="engineStatus">Connecting…</span></div>
-<div class="stats" style="margin:0">
-<div class="stat"><label>ENGINE TRADES</label><strong id="engineTrades">—</strong></div>
-<div class="stat"><label>THROUGHPUT</label><strong id="throughput">—</strong></div>
-<div class="stat"><label>MEDIAN µs</label><strong id="median">—</strong></div>
-<div class="stat"><label>P99 µs</label><strong id="p99">—</strong></div>
-</div>
-</div>
-</div>
+        <!-- PRICE CHART -->
+        <div class="panel">
+            <div class="panelhead">
+                <h3 class="ptitle" id="chartTitle">Market price</h3>
+                <span class="muted">Recent synthetic snapshots</span>
+            </div>
 
-<div class="stack">
-<div class="panel">
-<div class="panelhead"><h3 class="ptitle">Place limit order</h3><span class="muted">Virtual funds only</span></div>
-<div class="tabs">
-<button class="tab active buy" id="buyTab">BUY</button>
-<button class="tab" id="sellTab">SELL</button>
-</div>
-<form id="orderForm">
-<div class="field"><label>LIMIT PRICE</label><input id="price" type="number" min="1" step="1" required></div>
-<div class="field"><label>QUANTITY</label><input id="quantity" type="number" min="1" step="1" value="1" required></div>
-<div class="summary"><span>Estimated order value</span><b id="estimate">—</b></div>
-<button class="submit" id="submit">BUY BTC-SIM</button>
-<div class="msg" id="message" role="status"></div>
-</form>
-</div>
+            <div class="chartprice" id="selectedPrice">
+                — <span id="selectedSymbol">BTC-SIM</span>
+            </div>
 
-<div class="panel">
-<div class="panelhead"><h3 class="ptitle">Account overview</h3><span class="muted">Paper portfolio</span></div>
-<div class="account">
-<div class="cell"><label>INITIAL CASH</label><strong id="initialCash">—</strong></div>
-<div class="cell"><label>RESERVED CASH</label><strong id="reservedCash">—</strong></div>
-<div class="cell"><label>AVAILABLE CASH</label><strong id="availableCash">—</strong></div>
-<div class="cell"><label>SELECTED POSITION</label><strong id="position">—</strong></div>
-</div>
-</div>
-</div>
+            <canvas id="chart" width="1000" height="280"></canvas>
+
+            <div class="muted" id="chartUpdated">
+                Waiting for market data
+            </div>
+        </div>
+
+        <!-- ORDER BOOK -->
+        <div class="panel">
+            <div class="panelhead">
+                <h3 class="ptitle">
+                    Order book · <span id="bookSymbol">BTC-SIM</span>
+                </h3>
+                <span class="muted">Top 5 levels</span>
+            </div>
+
+            <div class="book">
+                <div>
+                    <div class="bid muted">BIDS · BUYERS</div>
+                    <table>
+                        <thead>
+                            <tr><th>Price</th><th>Qty</th></tr>
+                        </thead>
+                        <tbody id="bids"></tbody>
+                    </table>
+                </div>
+
+                <div>
+                    <div class="ask muted">ASKS · SELLERS</div>
+                    <table>
+                        <thead>
+                            <tr><th>Price</th><th>Qty</th></tr>
+                        </thead>
+                        <tbody id="asks"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="spread" id="spread">Spread —</div>
+        </div>
+
+        <!-- ENGINE MONITOR -->
+        <div class="panel">
+            <div class="panelhead">
+                <h3 class="ptitle">Matching engine monitor</h3>
+                <span class="muted" id="engineStatus">Connecting…</span>
+            </div>
+
+            <div class="stats" style="margin:0">
+                <div class="stat">
+                    <label>ENGINE TRADES</label>
+                    <strong id="engineTrades">—</strong>
+                </div>
+
+                <div class="stat">
+                    <label>THROUGHPUT</label>
+                    <strong id="throughput">—</strong>
+                </div>
+
+                <div class="stat">
+                    <label>MEDIAN µs</label>
+                    <strong id="median">—</strong>
+                </div>
+
+                <div class="stat">
+                    <label>P99 µs</label>
+                    <strong id="p99">—</strong>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- TRADING AND ACCOUNT -->
+    <div class="stack">
+
+        <!-- ORDER FORM -->
+        <div class="panel">
+            <div class="panelhead">
+                <h3 class="ptitle">Place limit order</h3>
+                <span class="muted">Virtual funds only</span>
+            </div>
+
+            <div class="tabs">
+                <button type="button" class="tab active buy" id="buyTab">BUY</button>
+                <button type="button" class="tab" id="sellTab">SELL</button>
+            </div>
+
+            <form id="orderForm">
+                <div class="field">
+                    <label>LIMIT PRICE</label>
+                    <input id="price" type="number" min="1" step="1" required>
+                </div>
+
+                <div class="field">
+                    <label>QUANTITY</label>
+                    <input id="quantity" type="number" min="1" step="1" value="1" required>
+                </div>
+
+                <div class="summary">
+                    <span>Estimated order value</span>
+                    <b id="estimate">—</b>
+                </div>
+
+                <button class="submit" id="submit">BUY BTC-SIM</button>
+
+                <div class="msg" id="message" role="status"></div>
+            </form>
+        </div>
+
+        <!-- ACCOUNT -->
+        <div class="panel">
+            <div class="panelhead">
+                <h3 class="ptitle">Account overview</h3>
+                <span class="muted">Paper portfolio</span>
+            </div>
+
+            <div class="account">
+                <div class="cell">
+                    <label>INITIAL CASH</label>
+                    <strong id="initialCash">—</strong>
+                </div>
+
+                <div class="cell">
+                    <label>RESERVED CASH</label>
+                    <strong id="reservedCash">—</strong>
+                </div>
+
+                <div class="cell">
+                    <label>AVAILABLE CASH</label>
+                    <strong id="availableCash">—</strong>
+                </div>
+
+                <div class="cell">
+                    <label>SELECTED POSITION</label>
+                    <strong id="position">—</strong>
+                </div>
+            </div>
+        </div>
+
+    </div>
 </section>
 
+<!-- ORDERS AND TRADES -->
 <section class="bottom">
-<div class="panel">
-<div class="panelhead"><h3 class="ptitle">Open orders</h3><span class="muted">All markets</span></div>
-<table>
-<thead><tr><th>Market</th><th>Side</th><th>Price</th><th>Remaining</th><th>Action</th></tr></thead>
-<tbody id="orders"></tbody>
-</table>
-</div>
 
-<div class="panel">
-<div class="panelhead"><h3 class="ptitle">Recent paper trades</h3><span class="muted">Latest executions</span></div>
-<table>
-<thead><tr><th>Market</th><th>Execution</th><th>Price</th><th>Qty</th></tr></thead>
-<tbody id="trades"></tbody>
-</table>
-</div>
+    <div class="panel">
+        <div class="panelhead">
+            <h3 class="ptitle">Open orders</h3>
+            <span class="muted">All markets</span>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Market</th>
+                    <th>Side</th>
+                    <th>Price</th>
+                    <th>Remaining</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="orders"></tbody>
+        </table>
+    </div>
+
+    <div class="panel">
+        <div class="panelhead">
+            <h3 class="ptitle">Recent paper trades</h3>
+            <span class="muted">Latest executions</span>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Market</th>
+                    <th>Execution</th>
+                    <th>Price</th>
+                    <th>Qty</th>
+                </tr>
+            </thead>
+            <tbody id="trades"></tbody>
+        </table>
+    </div>
+
 </section>
 
-<footer>ChronosMatch local paper-trading interface. All markets, balances and executions are synthetic and held in memory. No real exchange connection or real funds are used. Matching-engine latency is measured inside process_record(), not end-to-end order latency.</footer>
+<footer>
+    ChronosMatch Nexus local paper-trading interface.
+    All markets, balances and executions are synthetic and held in memory.
+    No real exchange connection or real funds are used.
+    Matching-engine latency is measured inside process_record(),
+    not end-to-end order latency.
+</footer>
+
 </main>
 
 <script>
-const $=id=>document.getElementById(id);
-const fmt=v=>Number(v||0).toLocaleString("en-IN",{maximumFractionDigits:2});
+"use strict";
 
-let markets=[],selected="BTC-SIM",side="BUY",history={};
+const $ = id => document.getElementById(id);
+
+const fmt = v => Number(v || 0).toLocaleString("en-IN", {
+    maximumFractionDigits: 2
+});
+
+let markets = [];
+let selected = "BTC-SIM";
+let side = "BUY";
+let history = {};
+
+let marketSearch = "";
+let marketFilter = "ALL";
+
+const MARKET_INFO = {
+    "BTC-SIM":  {name:"Bitcoin", category:"CRYPTO"},
+    "ETH-SIM":  {name:"Ethereum", category:"CRYPTO"},
+    "SOL-SIM":  {name:"Solana", category:"CRYPTO"},
+    "BNB-SIM":  {name:"BNB", category:"CRYPTO"},
+    "XRP-SIM":  {name:"XRP", category:"CRYPTO"},
+    "ADA-SIM":  {name:"Cardano", category:"CRYPTO"},
+    "DOGE-SIM": {name:"Dogecoin", category:"CRYPTO"},
+    "AVAX-SIM": {name:"Avalanche", category:"CRYPTO"},
+    "AAPL-SIM": {name:"Apple", category:"STOCKS"},
+    "MSFT-SIM": {name:"Microsoft", category:"STOCKS"},
+    "NVDA-SIM": {name:"NVIDIA", category:"STOCKS"},
+    "TSLA-SIM": {name:"Tesla", category:"STOCKS"}
+};
+
+function getMarketInfo(symbol){
+    return MARKET_INFO[symbol] || {
+        name:symbol,
+        category:"OTHER"
+    };
+}
 
 function setSide(s){
-side=s;
-$("buyTab").classList.toggle("active",s==="BUY");
-$("sellTab").classList.toggle("active",s==="SELL");
-$("submit").className="submit"+(s==="SELL"?" sell":"");
-$("submit").textContent=s+" "+selected;
+    side = s;
+
+    $("buyTab").classList.toggle("active",s === "BUY");
+    $("sellTab").classList.toggle("active",s === "SELL");
+
+    $("submit").className =
+        "submit" + (s === "SELL" ? " sell" : "");
+
+    $("submit").textContent = s + " " + selected;
 }
 
-$("buyTab").onclick=()=>setSide("BUY");
-$("sellTab").onclick=()=>setSide("SELL");
+$("buyTab").onclick = () => setSide("BUY");
+$("sellTab").onclick = () => setSide("SELL");
 
 function estimate(){
-const value=Number($("price").value||0)*Number($("quantity").value||0);
-$("estimate").textContent=value>0?fmt(value):"—";
+    const value =
+        Number($("price").value || 0) *
+        Number($("quantity").value || 0);
+
+    $("estimate").textContent =
+        value > 0 ? fmt(value) : "—";
 }
 
-$("price").oninput=estimate;
-$("quantity").oninput=estimate;
+$("price").oninput = estimate;
+$("quantity").oninput = estimate;
+
+
+// MARKET SEARCH AND FILTER
+
+$("marketSearch").addEventListener("input",event => {
+    marketSearch = event.target.value.trim().toLowerCase();
+    renderMarkets();
+});
+
+$("marketFilter").addEventListener("change",event => {
+    marketFilter = event.target.value;
+    renderMarkets();
+});
+
+function getFilteredMarkets(){
+    return markets.filter(m => {
+        const info = getMarketInfo(m.symbol);
+
+        const searchText = (
+            m.symbol + " " +
+            info.name + " " +
+            info.category
+        ).toLowerCase();
+
+        const matchesSearch =
+            !marketSearch || searchText.includes(marketSearch);
+
+        const matchesCategory =
+            marketFilter === "ALL" ||
+            info.category === marketFilter;
+
+        return matchesSearch && matchesCategory;
+    });
+}
 
 function renderMarkets(){
-$("markets").innerHTML=markets.map(m=>`
-<div class="market ${m.symbol===selected?"active":""}" data-s="${m.symbol}">
-<b>${m.symbol}</b>
-<div class="price">${fmt(m.last_price)}</div>
-<div class="muted">● Synthetic market</div>
-</div>`).join("");
+    const filtered = getFilteredMarkets();
 
-document.querySelectorAll(".market").forEach(e=>{
-e.onclick=()=>{
-selected=e.dataset.s;
-const m=markets.find(x=>x.symbol===selected);
-$("price").value=Math.round(m.last_price);
-setSide(side);
-refresh();
-};
-});
+    $("marketCount").textContent =
+        filtered.length + " of " + markets.length + " instruments";
+
+    if(!filtered.length){
+        $("markets").innerHTML = `
+            <div class="market" style="grid-column:1/-1;cursor:default">
+                <b>No matching instruments</b>
+                <div class="muted" style="margin-top:8px">
+                    Try another search or category.
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    $("markets").innerHTML = filtered.map(m => {
+        const info = getMarketInfo(m.symbol);
+
+        return `
+            <div
+                class="market ${m.symbol === selected ? "active" : ""}"
+                data-s="${m.symbol}"
+                role="button"
+                tabindex="0"
+                aria-label="Select ${m.symbol}"
+                aria-pressed="${m.symbol === selected}"
+            >
+                <div class="market-top">
+                    <b>${m.symbol}</b>
+                    <span class="market-symbol">● SIM</span>
+                </div>
+
+                <div class="price">${fmt(m.last_price)}</div>
+
+                <div class="market-meta">
+                    <span class="market-type">${info.name}</span>
+                    <span class="market-tag">${info.category}</span>
+                </div>
+            </div>
+        `;
+    }).join("");
+
+    document.querySelectorAll(".market[data-s]").forEach(card => {
+        const selectMarket = () => {
+            const symbol = card.dataset.s;
+
+            if(!symbol || symbol === selected)return;
+
+            selected = symbol;
+
+            const market = markets.find(x => x.symbol === selected);
+
+            if(market){
+                $("price").value = Math.round(market.last_price);
+            }
+
+            $("message").textContent = "";
+            $("message").className = "msg";
+
+            setSide(side);
+            renderMarkets();
+            refresh();
+        };
+
+        card.addEventListener("click",selectMarket);
+
+        card.addEventListener("keydown",event => {
+            if(event.key === "Enter" || event.key === " "){
+                event.preventDefault();
+                selectMarket();
+            }
+        });
+    });
 }
+
+
+// ORDER BOOK
 
 function rows(id,data,cls){
-$(id).innerHTML=data?.length
-?data.slice(0,5).map(r=>`
-<tr><td class="${cls}">${fmt(r.price)}</td><td>${fmt(r.quantity)}</td></tr>`).join("")
-:'<tr><td colspan="2" class="empty">No resting orders</td></tr>';
+    $(id).innerHTML = data?.length
+        ? data.slice(0,5).map(r => `
+            <tr>
+                <td class="${cls}">${fmt(r.price)}</td>
+                <td>${fmt(r.quantity)}</td>
+            </tr>
+        `).join("")
+        : '<tr><td colspan="2" class="empty">No resting orders</td></tr>';
 }
+
+
+// PRICE CHART
 
 function draw(){
-let c=$("chart"),x=c.getContext("2d"),w=c.width,h=c.height,v=history[selected]||[];
-x.clearRect(0,0,w,h);
-x.strokeStyle="#233149";
-for(let i=1;i<5;i++){
-x.beginPath();x.moveTo(0,h*i/5);x.lineTo(w,h*i/5);x.stroke();
+    const c = $("chart");
+    const x = c.getContext("2d");
+
+    const w = c.width;
+    const h = c.height;
+    const v = history[selected] || [];
+
+    x.clearRect(0,0,w,h);
+
+    x.strokeStyle = "#233149";
+
+    for(let i=1;i<5;i++){
+        x.beginPath();
+        x.moveTo(0,h*i/5);
+        x.lineTo(w,h*i/5);
+        x.stroke();
+    }
+
+    if(v.length < 2)return;
+
+    const lo = Math.min(...v);
+    const hi = Math.max(...v);
+    const range = hi-lo || Math.max(1,hi*.0001);
+
+    const p = v.map((n,i) => ({
+        x:i*w/(v.length-1),
+        y:h-15-(n-lo)/range*(h-30)
+    }));
+
+    const g = x.createLinearGradient(0,0,0,h);
+
+    g.addColorStop(0,"rgba(66,200,245,.24)");
+    g.addColorStop(1,"rgba(66,200,245,0)");
+
+    x.beginPath();
+
+    p.forEach((a,i) => {
+        if(i)x.lineTo(a.x,a.y);
+        else x.moveTo(a.x,a.y);
+    });
+
+    x.lineTo(w,h);
+    x.lineTo(0,h);
+    x.fillStyle = g;
+    x.fill();
+
+    x.beginPath();
+
+    p.forEach((a,i) => {
+        if(i)x.lineTo(a.x,a.y);
+        else x.moveTo(a.x,a.y);
+    });
+
+    x.strokeStyle = "#42c8f5";
+    x.lineWidth = 2.5;
+    x.stroke();
+
+    const z = p[p.length-1];
+
+    x.beginPath();
+    x.arc(z.x,z.y,5,0,Math.PI*2);
+    x.fillStyle = "#42c8f5";
+    x.fill();
 }
-if(v.length<2)return;
-let lo=Math.min(...v),hi=Math.max(...v),range=hi-lo||Math.max(1,hi*.0001);
-let p=v.map((n,i)=>({x:i*w/(v.length-1),y:h-15-(n-lo)/range*(h-30)}));
-let g=x.createLinearGradient(0,0,0,h);
-g.addColorStop(0,"rgba(66,200,245,.24)");
-g.addColorStop(1,"rgba(66,200,245,0)");
-x.beginPath();
-p.forEach((a,i)=>i?x.lineTo(a.x,a.y):x.moveTo(a.x,a.y));
-x.lineTo(w,h);x.lineTo(0,h);x.fillStyle=g;x.fill();
-x.beginPath();
-p.forEach((a,i)=>i?x.lineTo(a.x,a.y):x.moveTo(a.x,a.y));
-x.strokeStyle="#42c8f5";x.lineWidth=2.5;x.stroke();
-let z=p[p.length-1];
-x.beginPath();x.arc(z.x,z.y,5,0,7);x.fillStyle="#42c8f5";x.fill();
-}
+
+
+// API
 
 async function api(url){
-let r=await fetch(url,{cache:"no-store"});
-if(!r.ok)throw Error(url+" "+r.status);
-return r.json();
+    const r = await fetch(url,{cache:"no-store"});
+
+    if(!r.ok){
+        throw Error(url + " " + r.status);
+    }
+
+    return r.json();
 }
+
+
+// CANCEL ORDER
 
 async function cancelOrder(orderId,button){
-if(!confirm("Cancel paper order #"+orderId+"?"))return;
+    if(!confirm("Cancel paper order #" + orderId + "?"))return;
 
-button.disabled=true;
-button.textContent="Cancelling…";
+    button.disabled = true;
+    button.textContent = "Cancelling…";
 
-try{
-const response=await fetch("/api/orders/cancel",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({order_id:Number(orderId)})
-});
+    try{
+        const response = await fetch("/api/orders/cancel",{
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({
+                order_id:Number(orderId)
+            })
+        });
 
-const data=await response.json();
+        const data = await response.json();
 
-if(!response.ok){
-throw Error(data.error||"Cancellation failed.");
+        if(!response.ok){
+            throw Error(data.error || "Cancellation failed.");
+        }
+
+        $("message").className = "msg ok";
+
+        $("message").textContent =
+            "Order #" + orderId +
+            " cancelled · " +
+            data.result.cancelled_quantity +
+            " units released.";
+
+        await refresh();
+
+    }catch(error){
+        $("message").className = "msg err";
+        $("message").textContent = error.message;
+
+        button.disabled = false;
+        button.textContent = "Cancel";
+    }
 }
 
-$("message").className="msg ok";
-$("message").textContent=
-"Order #"+orderId+" cancelled · "+data.result.cancelled_quantity+" units released.";
 
-await refresh();
-
-}catch(error){
-$("message").className="msg err";
-$("message").textContent=error.message;
-button.disabled=false;
-button.textContent="Cancel";
-}
-}
+// DASHBOARD REFRESH
 
 async function refresh(){
-try{
-let [m,a,o,t,s]=await Promise.all([
-"/api/markets",
-"/api/account",
-"/api/orders",
-"/api/trades",
-"/api/snapshot"
-].map(api));
+    try{
+        const [m,a,o,t,s] = await Promise.all([
+            "/api/markets",
+            "/api/account",
+            "/api/orders",
+            "/api/trades",
+            "/api/snapshot"
+        ].map(api));
 
-markets=m.markets||[];
+        markets = m.markets || [];
 
-if(!markets.some(x=>x.symbol===selected)&&markets.length){
-selected=markets[0].symbol;
+        if(!markets.some(x => x.symbol === selected) && markets.length){
+            selected = markets[0].symbol;
+        }
+
+        renderMarkets();
+
+        const q = markets.find(x => x.symbol === selected);
+
+        if(q){
+            $("selectedPrice").innerHTML =
+                fmt(q.last_price) +
+                ' <span id="selectedSymbol">' +
+                selected +
+                "</span>";
+
+            $("chartTitle").textContent = selected + " price";
+            $("bookSymbol").textContent = selected;
+
+            history[selected] = history[selected] || [];
+
+            const v = Number(q.last_price);
+
+            if(history[selected].at(-1) !== v){
+                history[selected].push(v);
+            }
+
+            if(history[selected].length > 90){
+                history[selected].shift();
+            }
+
+            rows("bids",q.bids,"bid");
+            rows("asks",q.asks,"ask");
+
+            $("spread").textContent =
+                q.bids?.length && q.asks?.length
+                    ? "Spread: " + fmt(q.asks[0].price-q.bids[0].price)
+                    : "Spread unavailable";
+
+            if(!$("price").value){
+                $("price").value = Math.round(v);
+            }
+        }
+
+        // ACCOUNT BALANCES
+
+        $("cash").textContent = fmt(a.available_cash);
+        $("initialCash").textContent = fmt(a.initial_balance);
+        $("reservedCash").textContent = fmt(a.reserved_cash);
+        $("availableCash").textContent = fmt(a.available_cash);
+
+        const pos = a.positions?.[selected] || 0;
+        const res = a.reserved_positions?.[selected] || 0;
+
+        $("holdings").textContent = fmt(pos);
+        $("holdingSymbol").textContent = selected + " position";
+
+        $("position").textContent =
+            fmt(pos) + " (+" + fmt(res) + " reserved)";
+
+        // ORDERS AND TRADES
+
+        const os = o.orders || [];
+        const ts = t.trades || [];
+
+        $("openCount").textContent = os.length;
+        $("tradeCount").textContent = ts.length;
+
+        $("orders").innerHTML = os.length
+            ? os.slice(0,12).map(v => `
+                <tr>
+                    <td>${v.symbol}</td>
+                    <td class="${v.side === "BUY" ? "bid" : "ask"}">${v.side}</td>
+                    <td>${fmt(v.price)}</td>
+                    <td>${fmt(v.quantity)}</td>
+                    <td>
+                        <button
+                            type="button"
+                            class="cancel-order"
+                            data-id="${v.order_id}"
+                        >Cancel</button>
+                    </td>
+                </tr>
+            `).join("")
+            : '<tr><td colspan="5" class="empty">No open orders</td></tr>';
+
+        document.querySelectorAll(".cancel-order").forEach(btn => {
+            btn.onclick = () => cancelOrder(btn.dataset.id,btn);
+        });
+
+        $("trades").innerHTML = ts.length
+            ? ts.slice(0,12).map(v => `
+                <tr>
+                    <td>${v.symbol}</td>
+                    <td>EXECUTED</td>
+                    <td>${fmt(v.price)}</td>
+                    <td>${fmt(v.quantity)}</td>
+                </tr>
+            `).join("")
+            : '<tr><td colspan="4" class="empty">No paper trades yet</td></tr>';
+
+        // MATCHING ENGINE METRICS
+
+        const l = s.latency || {};
+
+        $("engineStatus").textContent =
+            (s.status || "unknown").toUpperCase();
+
+        $("engineTrades").textContent = fmt(s.trade_count);
+
+        $("throughput").textContent =
+            Number(s.trades_per_s || 0).toFixed(2);
+
+        $("median").textContent =
+            Number(l.median_us || 0).toFixed(2);
+
+        $("p99").textContent =
+            Number(l.p99_us || 0).toFixed(2);
+
+        $("chartUpdated").textContent =
+            "Updated " + new Date().toLocaleTimeString();
+
+        draw();
+        estimate();
+        setSide(side);
+
+    }catch(e){
+        $("engineStatus").textContent = "CONNECTION ERROR";
+        console.error(e);
+    }
 }
 
-renderMarkets();
 
-let q=markets.find(x=>x.symbol===selected);
+// SUBMIT ORDER
 
-if(q){
-$("selectedPrice").innerHTML=fmt(q.last_price)+' <span id="selectedSymbol">'+selected+"</span>";
-$("chartTitle").textContent=selected+" price";
-$("bookSymbol").textContent=selected;
+$("orderForm").onsubmit = async e => {
+    e.preventDefault();
 
-history[selected]=history[selected]||[];
-let v=Number(q.last_price);
+    const p = {
+        symbol:selected,
+        side,
+        price:Number($("price").value),
+        quantity:Number($("quantity").value)
+    };
 
-if(history[selected].at(-1)!==v)history[selected].push(v);
-if(history[selected].length>90)history[selected].shift();
+    const msg = $("message");
+    const btn = $("submit");
 
-rows("bids",q.bids,"bid");
-rows("asks",q.asks,"ask");
+    if(!Number.isSafeInteger(p.price) || p.price <= 0 ||
+       !Number.isSafeInteger(p.quantity) || p.quantity <= 0){
 
-$("spread").textContent=q.bids?.length&&q.asks?.length
-?"Spread: "+fmt(q.asks[0].price-q.bids[0].price)
-:"Spread unavailable";
+        msg.className = "msg err";
+        msg.textContent =
+            "Enter positive whole-number price and quantity.";
 
-if(!$("price").value)$("price").value=Math.round(v);
-}
+        return;
+    }
 
-$("cash").textContent=fmt(a.available_cash);
-$("initialCash").textContent=fmt(a.initial_balance);
-$("reservedCash").textContent=fmt(a.reserved_cash);
-$("availableCash").textContent=fmt(a.available_cash);
+    btn.disabled = true;
+    btn.textContent = "SUBMITTING…";
 
-let pos=a.positions?.[selected]||0;
-let res=a.reserved_positions?.[selected]||0;
+    try{
+        const r = await fetch("/api/orders",{
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify(p)
+        });
 
-$("holdings").textContent=fmt(pos);
-$("holdingSymbol").textContent=selected+" position";
-$("position").textContent=fmt(pos)+" (+"+fmt(res)+" reserved)";
+        const d = await r.json();
 
-let os=o.orders||[];
-let ts=t.trades||[];
+        if(!r.ok){
+            throw Error(d.error || "Order rejected");
+        }
 
-$("openCount").textContent=os.length;
-$("tradeCount").textContent=ts.length;
+        msg.className = "msg ok";
 
-$("orders").innerHTML=os.length
-?os.slice(0,12).map(v=>`
-<tr>
-<td>${v.symbol}</td>
-<td class="${v.side==="BUY"?"bid":"ask"}">${v.side}</td>
-<td>${fmt(v.price)}</td>
-<td>${fmt(v.quantity)}</td>
-<td><button type="button" class="cancel-order" data-id="${v.order_id}">Cancel</button></td>
-</tr>`).join("")
-:'<tr><td colspan="5" class="empty">No open orders</td></tr>';
+        msg.textContent =
+            `Accepted · filled ${d.result.filled_quantity || 0}` +
+            ` · remaining ${d.result.remaining_quantity || 0}`;
 
-document.querySelectorAll(".cancel-order").forEach(btn=>{
-btn.onclick=()=>cancelOrder(btn.dataset.id,btn);
-});
+        await refresh();
 
-$("trades").innerHTML=ts.length
-?ts.slice(0,12).map(v=>`
-<tr>
-<td>${v.symbol}</td>
-<td>EXECUTED</td>
-<td>${fmt(v.price)}</td>
-<td>${fmt(v.quantity)}</td>
-</tr>`).join("")
-:'<tr><td colspan="4" class="empty">No paper trades yet</td></tr>';
+    }catch(err){
+        msg.className = "msg err";
+        msg.textContent = err.message;
 
-let l=s.latency||{};
-
-$("engineStatus").textContent=(s.status||"unknown").toUpperCase();
-$("engineTrades").textContent=fmt(s.trade_count);
-$("throughput").textContent=Number(s.trades_per_s||0).toFixed(2);
-$("median").textContent=Number(l.median_us||0).toFixed(2);
-$("p99").textContent=Number(l.p99_us||0).toFixed(2);
-$("chartUpdated").textContent="Updated "+new Date().toLocaleTimeString();
-
-draw();
-estimate();
-setSide(side);
-
-}catch(e){
-$("engineStatus").textContent="CONNECTION ERROR";
-console.error(e);
-}
-}
-
-$("orderForm").onsubmit=async e=>{
-e.preventDefault();
-
-let p={
-symbol:selected,
-side,
-price:Number($("price").value),
-quantity:Number($("quantity").value)
+    }finally{
+        btn.disabled = false;
+        setSide(side);
+    }
 };
 
-let msg=$("message"),btn=$("submit");
 
-if(!Number.isSafeInteger(p.price)||p.price<=0||
-!Number.isSafeInteger(p.quantity)||p.quantity<=0){
-msg.className="msg err";
-msg.textContent="Enter positive whole-number price and quantity.";
-return;
-}
-
-btn.disabled=true;
-btn.textContent="SUBMITTING…";
-
-try{
-let r=await fetch("/api/orders",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify(p)
-});
-
-let d=await r.json();
-
-if(!r.ok)throw Error(d.error||"Order rejected");
-
-msg.className="msg ok";
-msg.textContent=`Accepted · filled ${d.result.filled_quantity||0} · remaining ${d.result.remaining_quantity||0}`;
-
-await refresh();
-
-}catch(err){
-msg.className="msg err";
-msg.textContent=err.message;
-
-}finally{
-btn.disabled=false;
-setSide(side);
-}
-};
+// INITIALIZE
 
 setSide("BUY");
 refresh();
+
 setInterval(refresh,1200);
 </script>
+
 </body>
 </html>

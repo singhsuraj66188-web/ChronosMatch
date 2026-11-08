@@ -17,6 +17,30 @@ class PaperExchange:
         "BTC-SIM": 6_500_000,
         "ETH-SIM": 350_000,
         "SOL-SIM": 15_000,
+        "BNB-SIM": 55_000,
+        "XRP-SIM": 200,
+        "ADA-SIM": 50,
+        "DOGE-SIM": 15,
+        "AVAX-SIM": 2_500,
+        "AAPL-SIM": 22_000,
+        "MSFT-SIM": 45_000,
+        "NVDA-SIM": 18_000,
+        "TSLA-SIM": 30_000,
+    }
+
+    TICK_SIZES = {
+        "BTC-SIM": 100,
+        "ETH-SIM": 100,
+        "SOL-SIM": 100,
+        "BNB-SIM": 10,
+        "XRP-SIM": 1,
+        "ADA-SIM": 1,
+        "DOGE-SIM": 1,
+        "AVAX-SIM": 5,
+        "AAPL-SIM": 10,
+        "MSFT-SIM": 10,
+        "NVDA-SIM": 10,
+        "TSLA-SIM": 10,
     }
 
     def __init__(self):
@@ -50,11 +74,12 @@ class PaperExchange:
 
         for symbol, price in self.MARKETS.items():
             engine = self.engines[symbol]
+            tick_size = self.TICK_SIZES[symbol]
 
             for level in range(1, 6):
                 for side, order_price in (
-                    (Side.BUY, price - level * 100),
-                    (Side.SELL, price + level * 100),
+                    (Side.BUY, price - level * tick_size),
+                    (Side.SELL, price + level * tick_size),
                 ):
                     order_id = self._new_order_id()
                     quantity = 10 + level * 2

@@ -85,3 +85,33 @@ def test_cancel_order_twice_is_rejected():
 
     with pytest.raises(ValueError, match="Open order not found"):
         exchange.cancel_order(order_id)
+
+def test_all_synthetic_markets_initialize_with_independent_order_books():
+    exchange = PaperExchange()
+
+    expected_markets = {
+        "BTC-SIM",
+        "ETH-SIM",
+        "SOL-SIM",
+        "BNB-SIM",
+        "XRP-SIM",
+        "ADA-SIM",
+        "DOGE-SIM",
+        "AVAX-SIM",
+        "AAPL-SIM",
+        "MSFT-SIM",
+        "NVDA-SIM",
+        "TSLA-SIM",
+    }
+
+    assert set(exchange.MARKETS) == expected_markets
+    assert set(exchange.engines) == expected_markets
+    assert set(exchange.positions) == expected_markets
+    assert set(exchange.last_prices) == expected_markets
+
+    for symbol in expected_markets:
+        snapshot = exchange.get_market_snapshot(symbol)
+
+        assert len(snapshot["bids"]) == 5
+        assert len(snapshot["asks"]) == 5
+        assert snapshot["last_price"] == exchange.MARKETS[symbol]

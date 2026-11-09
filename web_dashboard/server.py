@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import asyncio
@@ -26,15 +25,16 @@ from simulator.ring_buffer_integration import transfer_ticks
 from web_dashboard.session_manager import SessionManager
 
 
-DATA_DIR = ROOT / "data"
+DATA_DIR = Path(os.environ.get("DATA_DIR", str(ROOT / "data")))
 RING_PATH = DATA_DIR / f"web_dashboard_ring_buffer_{time.time_ns()}.bin"
 LEDGER_PATH = DATA_DIR / f"web_dashboard_trades_{time.time_ns()}.db"
 
 HOST = "0.0.0.0"
 PORT = 5000
 
-TICK_COUNT = 3000
+TICK_COUNT = int(os.environ.get("TICK_COUNT", "3000"))
 TICK_INTERVAL_MS = 20.0
+CYCLE_PAUSE_S = 2.0
 MAX_REQUEST_BODY = 16_384
 
 
@@ -45,57 +45,81 @@ class DashboardState:
         self.status = "starting"
         self.error = None
         self.metrics = None
+        self.cycle = 0
+        self.stop = threading.Event()
 
 
 def run_pipeline(state: DashboardState) -> None:
-    try:
+    """Run the simulator -> ring buffer -> matching pipeline forever.
+
+    Each cycle uses a fresh MatchingEngine (order IDs restart every cycle,
+    so reusing an engine would raise duplicate-ID errors). The dashboard
+    object is kept, so trade counts, latency samples and throughput keep
+    accumulating and the public page never shows a stopped engine.
+    """
+    cycle = 0
+
+    while not state.stop.is_set():
+        cycle += 1
+        engine = MatchingEngine()
+
+        # Point the live dashboard at the new engine (same lock it uses
+        # for snapshots) before the pipeline starts.
+        with state.dashboard.lock:
+            state.dashboard.engine = engine
+
         with state.lock:
             state.status = "running"
+            state.error = None
+            state.cycle = cycle
 
-        engine = state.dashboard.engine
-
-        with TradeLedger(LEDGER_PATH) as ledger:
-            with RingBuffer(
-                RING_PATH,
-                capacity=64,
-                create=True,
-            ) as ring:
-                result = asyncio.run(
-                    transfer_ticks(
-                        generate_ticks(
-                            count=TICK_COUNT,
-                            interval_ms=TICK_INTERVAL_MS,
-                            seed=7,
-                        ),
-                        ring,
-                        engine=engine,
-                        ledger=ledger,
-                        dashboard_state=state.dashboard,
+        try:
+            with TradeLedger(LEDGER_PATH) as ledger:
+                with RingBuffer(
+                    RING_PATH,
+                    capacity=64,
+                    create=True,
+                ) as ring:
+                    result = asyncio.run(
+                        transfer_ticks(
+                            generate_ticks(
+                                count=TICK_COUNT,
+                                interval_ms=TICK_INTERVAL_MS,
+                                seed=7 + cycle,
+                            ),
+                            ring,
+                            engine=engine,
+                            ledger=ledger,
+                            dashboard_state=state.dashboard,
+                        )
                     )
-                )
 
-            ledger.flush()
+                ledger.flush()
 
-            metrics = {
-                "generated_ticks": result.metrics.generated_ticks,
-                "successful_writes": result.metrics.successful_writes,
-                "successful_reads": result.metrics.successful_reads,
-                "matching_processed_records": (
-                    result.metrics.matching_processed_records
-                ),
-                "persisted_trades": ledger.written,
-            }
+                metrics = {
+                    "generated_ticks": result.metrics.generated_ticks,
+                    "successful_writes": result.metrics.successful_writes,
+                    "successful_reads": result.metrics.successful_reads,
+                    "matching_processed_records": (
+                        result.metrics.matching_processed_records
+                    ),
+                    "persisted_trades": ledger.written,
+                    "cycle": cycle,
+                }
 
-        with state.lock:
-            state.metrics = metrics
-            state.status = "completed"
+            with state.lock:
+                state.metrics = metrics
 
-    except Exception as exc:
-        with state.lock:
-            state.status = "error"
-            state.error = str(exc)
+            # Short pause, then immediately start the next cycle.
+            state.stop.wait(CYCLE_PAUSE_S)
 
-        print(f"Pipeline error: {exc}")
+        except Exception as exc:
+            with state.lock:
+                state.status = "error"
+                state.error = str(exc)
+
+            print(f"Pipeline error: {exc}", flush=True)
+            state.stop.wait(5)
 
 
 def make_handler(
@@ -273,15 +297,15 @@ def make_handler(
                 return
 
             if path == "/api/snapshot":
-                snapshot = state.dashboard.snapshot()
-                snapshot["trade_count"] = (
-                    state.dashboard.trade_count
-                )
+                dashboard = state.dashboard
+                snapshot = dashboard.snapshot()
+                snapshot["trade_count"] = dashboard.trade_count
 
                 with state.lock:
                     snapshot["status"] = state.status
                     snapshot["error"] = state.error
                     snapshot["metrics"] = state.metrics
+                    snapshot["cycle"] = state.cycle
 
                 self.send_json(snapshot)
                 return
@@ -418,9 +442,12 @@ def main() -> None:
     state = DashboardState(dashboard)
 
     # Each browser session receives its own PaperExchange.
+    # 2-hour sessions and a larger cap stop crawlers or uptime pingers
+    # (which send no cookie) from filling every slot and locking out
+    # real visitors with a 503.
     session_manager = SessionManager(
-        session_ttl_seconds=12 * 60 * 60,
-        max_sessions=50,
+        session_ttl_seconds=2 * 60 * 60,
+        max_sessions=300,
     )
 
     worker = threading.Thread(
@@ -443,8 +470,8 @@ def main() -> None:
     print()
     print("ChronosMatch browser dashboard is running.")
     print(f"Listening on: {host}:{port}")
-    print(f"Demo workload: {TICK_COUNT} ticks")
-    print("Paper markets: BTC-SIM, ETH-SIM, SOL-SIM")
+    print(f"Demo workload: {TICK_COUNT} ticks per cycle, repeating")
+    print("Paper markets: 12 synthetic instruments (crypto and stocks)")
     print("Each browser session has an isolated paper account.")
     print("Paper trading uses synthetic virtual funds only.")
     print("Press Ctrl+C to stop the web server.")
@@ -455,6 +482,7 @@ def main() -> None:
     except KeyboardInterrupt:
         print("\nStopping dashboard server...")
     finally:
+        state.stop.set()
         server.server_close()
 
 
